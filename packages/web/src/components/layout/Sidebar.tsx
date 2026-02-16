@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "◫" },
   { to: "/analytics", label: "Analytics", icon: "◰" },
+  { to: "/trade", label: "Trade", icon: "⇄" },
   { to: "/rules", label: "Rules", icon: "⚙" },
   { to: "/backtest", label: "Backtest", icon: "▶" },
 ] as const;
