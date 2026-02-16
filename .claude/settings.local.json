@@ -12,7 +12,8 @@
       "Bash(node:*)",
       "Bash(curl:*)",
       "Bash(taskkill:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [
       "Read(./.env*)",

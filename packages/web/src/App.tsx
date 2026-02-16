@@ -1,10 +1,20 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Shell } from "@/components/layout/Shell";
+import { Analytics } from "@/pages/Analytics";
+import { Dashboard } from "@/pages/Dashboard";
+import { Placeholder } from "@/pages/Placeholder";
+
 export default function App() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Trading Terminal</h1>
-        <p className="text-neutral-400">Phase 1 — Scaffolding complete</p>
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Shell />}>
+          <Route index element={<Dashboard />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="rules" element={<Placeholder title="Rules" />} />
+          <Route path="backtest" element={<Placeholder title="Backtest" />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
