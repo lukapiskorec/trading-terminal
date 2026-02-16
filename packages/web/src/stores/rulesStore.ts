@@ -2,18 +2,38 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TradingRule } from "@/types/rule";
 
+export interface RuleExecution {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  slug: string;
+  action: string;      // e.g. "BUY YES $10"
+  result: "success" | "failed";
+  error?: string;
+  timestamp: string;    // ISO 8601
+}
+
 interface RulesState {
   rules: TradingRule[];
+  executions: RuleExecution[];
+  /** ruleId → last fire timestamp (ms) for cooldown tracking */
+  lastFired: Record<string, number>;
+
   addRule: (rule: TradingRule) => void;
   updateRule: (id: string, updates: Partial<TradingRule>) => void;
   removeRule: (id: string) => void;
   toggleRule: (id: string) => void;
+  logExecution: (exec: RuleExecution) => void;
+  recordFired: (ruleId: string, timestamp: number) => void;
+  clearExecutions: () => void;
 }
 
 export const useRulesStore = create<RulesState>()(
   persist(
     (set, get) => ({
       rules: [],
+      executions: [],
+      lastFired: {},
 
       addRule: (rule) => set({ rules: [...get().rules, rule] }),
 
@@ -31,6 +51,14 @@ export const useRulesStore = create<RulesState>()(
             r.id === id ? { ...r, enabled: !r.enabled } : r,
           ),
         }),
+
+      logExecution: (exec) =>
+        set({ executions: [exec, ...get().executions].slice(0, 200) }),
+
+      recordFired: (ruleId, timestamp) =>
+        set({ lastFired: { ...get().lastFired, [ruleId]: timestamp } }),
+
+      clearExecutions: () => set({ executions: [], lastFired: {} }),
     }),
     { name: "trading-rules" },
   ),

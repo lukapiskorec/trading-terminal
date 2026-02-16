@@ -16,3 +16,31 @@ body {
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
 }
+
+/* Shared form field styles used across components */
+.input-field {
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid #404040;
+  background-color: #171717;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  color: #f5f5f5;
+  outline: none;
+}
+.input-field:focus {
+  border-color: #737373;
+}
+
+.select-field {
+  border-radius: 0.375rem;
+  border: 1px solid #404040;
+  background-color: #171717;
+  padding: 0.25rem 0.375rem;
+  font-size: 0.8125rem;
+  color: #f5f5f5;
+  outline: none;
+}
+.select-field:focus {
+  border-color: #737373;
+}

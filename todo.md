@@ -13,3 +13,8 @@
 - [ ] Trading uses last historical snapshot price as fill price — works for simulation, but live trading needs WebSocket prices
 - [ ] No SELL UI in the order panel — positions auto-settle on resolution or user can reset; add explicit sell button if needed
 - [ ] Virtual trades stored in localStorage only — migrate to Supabase if cloud persistence is needed
+
+
+## Phase 6: Trading Rules
+- [ ] Wire rules engine into WebSocket live price feed for automatic triggering (Phase 8)
+- [ ] Rules can be tested via backtester (Phase 7) against historical data
