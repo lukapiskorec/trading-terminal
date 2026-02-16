@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: "/trade", label: "Trade", icon: "⇄" },
   { to: "/rules", label: "Rules", icon: "⚙" },
   { to: "/backtest", label: "Backtest", icon: "▶" },
+  { to: "/settings", label: "Settings", icon: "☰" },
 ] as const;
 
 export function Sidebar() {

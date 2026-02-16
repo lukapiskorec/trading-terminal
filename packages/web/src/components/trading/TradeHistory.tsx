@@ -1,14 +1,39 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useTradeStore } from "@/stores/tradeStore";
 import { cn } from "@/lib/cn";
+import { toCsv, downloadCsv } from "@/lib/csv";
 
 export function TradeHistory() {
   const { trades } = useTradeStore();
 
+  const handleExport = () => {
+    if (trades.length === 0) return;
+    const csv = toCsv(
+      trades.map((t) => ({
+        timestamp: t.timestamp,
+        slug: t.slug,
+        side: t.side,
+        outcome: t.outcome,
+        price: t.price,
+        quantity: t.quantity,
+        fee: t.fee,
+        total: t.total,
+        ruleId: t.ruleId ?? "",
+      })),
+    );
+    downloadCsv(csv, `trades-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Trade History ({trades.length})</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Trade History ({trades.length})</CardTitle>
+          {trades.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={handleExport}>Export CSV</Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {trades.length === 0 ? (

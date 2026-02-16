@@ -13,7 +13,7 @@ import type { Market, PriceSnapshot } from "@/types/market";
 
 export function Trade() {
   const { date } = useOutletContext<ShellContext>();
-  const { markets, snapshots, loading, fetchMarketsByDate, fetchSnapshots } = useMarketStore();
+  const { markets, snapshots, loading, error, fetchMarketsByDate, fetchSnapshots } = useMarketStore();
   const { balance, settleMarket, reset } = useTradeStore();
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -53,6 +53,28 @@ export function Trade() {
       }
     }
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-red-400 text-sm">Error loading market data</p>
+          <p className="text-xs text-neutral-500 mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && markets.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-neutral-400 text-sm">No markets for {date}</p>
+          <p className="text-xs text-neutral-500 mt-1">Try selecting a date with seeded data</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-[1fr_300px] gap-4 h-full">

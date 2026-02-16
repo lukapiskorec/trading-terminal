@@ -1,20 +1,41 @@
+import { useEffect, useState } from "react";
+import * as ws from "@/lib/ws";
+import type { ConnectionStatus } from "@/lib/ws";
+import { cn } from "@/lib/cn";
+
 interface HeaderProps {
   date: string; // YYYY-MM-DD
   onDateChange: (date: string) => void;
 }
 
 export function Header({ date, onDateChange }: HeaderProps) {
+  const [wsStatus, setWsStatus] = useState<ConnectionStatus>(ws.getStatus());
+
+  useEffect(() => {
+    return ws.onStatus(setWsStatus);
+  }, []);
+
   return (
     <header className="flex h-12 items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4">
       <div className="text-sm text-neutral-400">
         {formatDateLabel(date)}
       </div>
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => onDateChange(e.target.value)}
-        className="h-8 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-      />
+      <div className="flex items-center gap-3">
+        {/* WS status indicator */}
+        <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+          <span className={cn(
+            "inline-block h-1.5 w-1.5 rounded-full",
+            wsStatus === "connected" ? "bg-green-400" : wsStatus === "connecting" ? "bg-yellow-400 animate-pulse" : "bg-neutral-600",
+          )} />
+          WS
+        </div>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
+          className="h-8 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+        />
+      </div>
     </header>
   );
 }
