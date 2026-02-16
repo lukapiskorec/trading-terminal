@@ -1,0 +1,65 @@
+const GAMMA = "https://gamma-api.polymarket.com";
+const CLOB = "https://clob.polymarket.com";
+
+/** Delay helper for rate limiting */
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText} — ${url}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ---------------------------------------------------------------------------
+// Gamma API
+// ---------------------------------------------------------------------------
+
+export interface GammaEvent {
+  id: string;
+  slug: string;
+  title: string;
+  markets: GammaMarket[];
+}
+
+export interface GammaMarket {
+  id: string;
+  question: string;
+  conditionId: string;
+  slug: string;
+  tokens: { token_id: string; outcome: string }[];
+  startDate: string;
+  endDate: string;
+  closed: boolean;
+  volume: string;
+  outcomePrices: string;
+  outcome?: string;
+}
+
+export async function getEventBySlug(slug: string): Promise<GammaEvent | null> {
+  const data = await fetchJson<GammaEvent[]>(`${GAMMA}/events?slug=${slug}`);
+  return data[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// CLOB API
+// ---------------------------------------------------------------------------
+
+export interface PriceHistoryPoint {
+  t: number;
+  p: string;
+}
+
+export async function getPriceHistory(
+  tokenId: string,
+  opts?: { startTs?: number; endTs?: number; fidelity?: number },
+): Promise<{ history: PriceHistoryPoint[] }> {
+  const params = new URLSearchParams({ market: tokenId });
+  if (opts?.startTs) params.set("startTs", String(opts.startTs));
+  if (opts?.endTs) params.set("endTs", String(opts.endTs));
+  if (opts?.fidelity) params.set("fidelity", String(opts.fidelity));
+  return fetchJson(`${CLOB}/prices-history?${params}`);
+}
