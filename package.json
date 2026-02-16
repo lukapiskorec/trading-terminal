@@ -1,0 +1,16 @@
+{
+  "name": "trading-terminal",
+  "private": true,
+  "packageManager": "pnpm@10.4.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "dev": "concurrently --names proxy,web --prefix-colors blue,green \"pnpm --filter proxy dev\" \"pnpm --filter web dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "@hono/node-server": "^1.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

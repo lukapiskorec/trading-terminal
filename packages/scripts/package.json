@@ -1,0 +1,16 @@
+{
+  "name": "scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx src/seed-feb13.ts",
+    "collect": "tsx src/collect-live.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
