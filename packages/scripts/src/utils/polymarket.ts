@@ -25,18 +25,20 @@ export interface GammaEvent {
   markets: GammaMarket[];
 }
 
+/** Matches the actual Gamma API response for BTC 5-min markets */
 export interface GammaMarket {
   id: string;
   question: string;
   conditionId: string;
   slug: string;
-  tokens: { token_id: string; outcome: string }[];
-  startDate: string;
+  clobTokenIds: string;     // JSON string: '["yesTokenId", "noTokenId"]'
+  outcomes: string;          // JSON string: '["Up", "Down"]'
+  outcomePrices: string;     // JSON string: '["1", "0"]'
+  eventStartTime: string;    // actual market start (ISO)
   endDate: string;
   closed: boolean;
   volume: string;
-  outcomePrices: string;
-  outcome?: string;
+  volumeNum: number;
 }
 
 export async function getEventBySlug(slug: string): Promise<GammaEvent | null> {
@@ -50,7 +52,7 @@ export async function getEventBySlug(slug: string): Promise<GammaEvent | null> {
 
 export interface PriceHistoryPoint {
   t: number;
-  p: string;
+  p: number;
 }
 
 export async function getPriceHistory(

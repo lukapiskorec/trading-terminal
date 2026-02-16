@@ -11,7 +11,8 @@
       "Bash(npm install:*)",
       "Bash(node:*)",
       "Bash(curl:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [
       "Read(./.env*)",

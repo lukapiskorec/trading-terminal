@@ -1,5 +1,5 @@
 /** Feb 13, 2026 midnight UTC — base timestamp for historical data */
-export const FEB13_BASE_TS = 1739404800;
+export const FEB13_BASE_TS = 1770940800;
 
 /** Number of 5-min markets per day */
 export const MARKETS_PER_DAY = 288;
