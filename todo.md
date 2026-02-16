@@ -18,3 +18,9 @@
 ## Phase 6: Trading Rules
 - [ ] Wire rules engine into WebSocket live price feed for automatic triggering (Phase 8)
 - [ ] Rules can be tested via backtester (Phase 7) against historical data
+
+
+## Phase 7: Backtesting
+- [ ] Worker inlines fee/rules logic — if `lib/fees.ts` or `lib/rulesEngine.ts` change, the worker copy needs updating. Refactor to shared pure-function module with relative imports later
+- [ ] Only ~5 price snapshots per market (1-min fidelity) — rules depending on fine-grained price movement may not trigger often. Improves with live-collected 10-sec data (Phase 8)
+- [ ] Sharpe ratio annualization assumes 288*365 periods — only meaningful with multi-day backtests

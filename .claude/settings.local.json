@@ -13,7 +13,8 @@
       "Bash(curl:*)",
       "Bash(taskkill:*)",
       "Bash(npx tsx:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)"
     ],
     "deny": [
       "Read(./.env*)",

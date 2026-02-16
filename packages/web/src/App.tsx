@@ -4,7 +4,7 @@ import { Analytics } from "@/pages/Analytics";
 import { Dashboard } from "@/pages/Dashboard";
 import { Trade } from "@/pages/Trade";
 import { Rules } from "@/pages/Rules";
-import { Placeholder } from "@/pages/Placeholder";
+import { Backtest } from "@/pages/Backtest";
 
 export default function App() {
   return (
@@ -15,7 +15,7 @@ export default function App() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="trade" element={<Trade />} />
           <Route path="rules" element={<Rules />} />
-          <Route path="backtest" element={<Placeholder title="Backtest" />} />
+          <Route path="backtest" element={<Backtest />} />
         </Route>
       </Routes>
     </BrowserRouter>
