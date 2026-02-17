@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import * as ws from "@/lib/ws";
 import type { ConnectionStatus } from "@/lib/ws";
 import type { Market } from "@/types/market";
+import { IndicatorPanel } from "@/components/dashboard/IndicatorPanel";
 
 export function Dashboard() {
   const { date } = useOutletContext<ShellContext>();
@@ -131,6 +132,9 @@ export function Dashboard() {
             : wsStatus === "connected" ? "Waiting for data..." : "WS disconnected"}
         />
       </div>
+
+      {/* BTC Indicators */}
+      <IndicatorPanel />
 
       {/* Recent outcomes grid */}
       <Card>

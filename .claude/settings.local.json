@@ -20,7 +20,11 @@
       "WebFetch(domain:docs.polybacktest.com)",
       "WebFetch(domain:api.polybacktest.com)",
       "Bash(pnpm --filter scripts explore:pbt:*)",
-      "Bash(pnpm --filter web exec tsc:*)"
+      "Bash(pnpm --filter web exec tsc:*)",
+      "Bash(gh api:*)",
+      "Bash(powershell.exe -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [
       "Read(./.env*)",

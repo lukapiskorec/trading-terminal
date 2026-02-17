@@ -9,7 +9,8 @@
     "backfill": "tsx src/backfill-trades.ts",
     "derive-key": "tsx src/derive-api-key.ts",
     "explore:pbt": "tsx src/explore-polybacktest.ts",
-    "sync:pbt": "tsx src/sync-polybacktest.ts"
+    "sync:pbt": "tsx src/sync-polybacktest.ts",
+    "collect:indicators": "tsx src/collect-indicators.ts"
   },
   "dependencies": {
     "@polymarket/clob-client": "^5.2.3",
