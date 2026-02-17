@@ -7,19 +7,19 @@ import type { Signal, IndicatorResult } from "@/lib/indicators";
 
 type IndicatorKey = "obi" | "cvd" | "rsi" | "macd" | "emaCross" | "vwap" | "heikinAshi" | "poc" | "walls" | "bbands" | "flowToxicity" | "roc";
 
-const INDICATOR_LABELS: { key: IndicatorKey; label: string }[] = [
-  { key: "obi", label: "OBI" },
-  { key: "cvd", label: "CVD" },
-  { key: "rsi", label: "RSI" },
-  { key: "macd", label: "MACD" },
-  { key: "emaCross", label: "EMA Cross" },
-  { key: "vwap", label: "VWAP" },
-  { key: "heikinAshi", label: "Heikin Ashi" },
-  { key: "poc", label: "POC" },
-  { key: "walls", label: "Walls" },
-  { key: "bbands", label: "BBands %B" },
-  { key: "flowToxicity", label: "Flow Toxic." },
-  { key: "roc", label: "ROC" },
+const INDICATOR_LABELS: { key: IndicatorKey; label: string; fullName: string; desc: string }[] = [
+  { key: "obi", label: "OBI", fullName: "Order Book Imbalance", desc: "Whether there is more resting buy or sell liquidity near the current price." },
+  { key: "cvd", label: "CVD", fullName: "Cumulative Volume Delta", desc: "Net aggressive buying vs selling pressure over a rolling 5-min window." },
+  { key: "rsi", label: "RSI", fullName: "Relative Strength Index", desc: "Momentum — whether recent price moves have been predominantly up or down." },
+  { key: "macd", label: "MACD", fullName: "Moving Average Convergence Divergence", desc: "Trend momentum via the relationship between fast and slow exponential moving averages." },
+  { key: "emaCross", label: "EMA Cross", fullName: "EMA Crossover (5/20)", desc: "Short-term trend direction — whether fast momentum is above or below the slower trend." },
+  { key: "vwap", label: "VWAP", fullName: "Volume-Weighted Average Price", desc: "The average price weighted by volume — institutional benchmark for fair value." },
+  { key: "heikinAshi", label: "Heikin Ashi", fullName: "Heikin Ashi Streak", desc: "Trend persistence using smoothed candles — how many consecutive candles are the same color." },
+  { key: "poc", label: "POC", fullName: "Point of Control (Volume Profile)", desc: "The price level with the highest traded volume — where the market spent most of its energy." },
+  { key: "walls", label: "Walls", fullName: "Bid/Ask Walls", desc: "Whether there are large resting orders (walls) on the bid or ask side of the orderbook." },
+  { key: "bbands", label: "BBands %B", fullName: "Bollinger Bands (%B)", desc: "Price position relative to its volatility envelope — is price stretched to an extreme or near the mean?" },
+  { key: "flowToxicity", label: "Flow Toxic.", fullName: "Order Flow Toxicity", desc: "Whether recent order flow is one-sided and informed — indicating toxic flow to market makers." },
+  { key: "roc", label: "ROC", fullName: "Rate of Change", desc: "Simple price momentum — percentage change over a 10-minute lookback period." },
 ];
 
 function signalClasses(signal: Signal): string {
@@ -82,10 +82,10 @@ export function IndicatorPanel() {
           <>
             {/* 3×4 indicator grid */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {INDICATOR_LABELS.map(({ key, label }) => {
+              {INDICATOR_LABELS.map(({ key, label, fullName, desc }) => {
                 const result = indicators[key];
                 return (
-                  <div key={key} className="rounded border border-theme bg-surface px-3 py-2">
+                  <div key={key} className="group relative rounded border border-theme bg-surface px-3 py-2">
                     <div className="text-[11px] text-neutral-500">{label}</div>
                     {result ? (
                       <div className="flex items-center justify-between gap-2 mt-1">
@@ -97,6 +97,11 @@ export function IndicatorPanel() {
                     ) : (
                       <div className="text-xs text-neutral-600 mt-1">—</div>
                     )}
+                    {/* Hover tooltip */}
+                    <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded border border-theme bg-panel shadow-lg shadow-black/50 p-2 text-xs opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150">
+                      <div className="font-semibold text-neutral-200 mb-1">{fullName}</div>
+                      <div className="text-neutral-400 leading-relaxed">{desc}</div>
+                    </div>
                   </div>
                 );
               })}

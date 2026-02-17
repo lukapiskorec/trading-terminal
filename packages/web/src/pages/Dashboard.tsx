@@ -10,6 +10,7 @@ import * as ws from "@/lib/ws";
 import type { ConnectionStatus } from "@/lib/ws";
 import type { Market } from "@/types/market";
 import { IndicatorPanel } from "@/components/dashboard/IndicatorPanel";
+import { OutcomeCell } from "@/components/dashboard/OutcomeCell";
 
 export function Dashboard() {
   const { date } = useOutletContext<ShellContext>();
@@ -149,18 +150,7 @@ export function Dashboard() {
           ) : (
             <div className="flex flex-wrap gap-1">
               {resolvedMarkets.map((m) => (
-                <div
-                  key={m.id}
-                  title={`${formatTime(m.start_time)} UTC — ${m.outcome} — ${m.volume ? "$" + Math.round(m.volume).toLocaleString() : "no volume"}`}
-                  className={cn(
-                    "h-6 w-6 rounded-sm flex items-center justify-center text-[10px] font-mono cursor-default",
-                    m.outcome === "Up"
-                      ? "bg-magenta/15 text-magenta"
-                      : "bg-accent/15 text-accent",
-                  )}
-                >
-                  {m.outcome === "Up" ? "\u25B2" : "\u25BC"}
-                </div>
+                <OutcomeCell key={m.id} market={m} />
               ))}
             </div>
           )}
@@ -185,7 +175,7 @@ export function Dashboard() {
                     <th className="py-1.5 text-left font-medium">Time (UTC)</th>
                     <th className="py-1.5 text-left font-medium">Slug</th>
                     <th className="py-1.5 text-right font-medium">Outcome</th>
-                    <th className="py-1.5 text-right font-medium">Volume</th>
+                    <th className="py-1.5 text-right font-medium pr-4">Volume</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,7 +196,7 @@ export function Dashboard() {
                           <span className="text-neutral-600">-</span>
                         )}
                       </td>
-                      <td className="py-1.5 text-right text-neutral-400 font-mono">
+                      <td className="py-1.5 text-right text-neutral-400 font-mono pr-4">
                         {m.volume ? `$${Math.round(m.volume)}` : "-"}
                       </td>
                     </tr>
