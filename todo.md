@@ -1,13 +1,19 @@
 # TODO — Deferred Concerns
 
-## General
-- [ ] consistent naming - always mention both UP (YES) and DOWN (NO) to keep consistent
+## Dashboard
+- [x] consistent naming - always mention both UP (YES) and DOWN (NO) to keep consistent - apply to the whole app
+- [x] add data on hover over arrows at Outcomes - temporal sequence is not clear from this design (which market is earlier and which is later)
+- [x] live Polymarket prices don't seem to update - check connection and stream
 
 
 ## Phase 4: Analytics Dashboard
 - [ ] `packages/web/.env` must be configured with Supabase publishable key for Analytics page to load data
 - [ ] 608KB JS bundle (mostly lightweight-charts ~200KB) — can code-split with dynamic imports later
 - [ ] apply chart and app styling from this app (dark background, magenta text, cyan and green highlights...) - https://github.com/lukapiskorec/strategy-utils
+- [x] normalized price overlay seems to not display all the markets, or the graph lines are too faint to see
+- [x] normalized price overlay seems to disappear when I resize the browser window, comes back when I click the tabs on the left again
+- [x] Outcome Timeline cannot fit all arrows from 288 daily markets - resolve with scaling
+- [x] add data on hover over arrows at Outcome Timeline
 
 
 

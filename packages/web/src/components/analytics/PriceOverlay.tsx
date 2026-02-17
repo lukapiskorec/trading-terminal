@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Market, PriceSnapshot } from "@/types/market";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { MARKET_DURATION } from "@/lib/constants";
@@ -8,8 +8,8 @@ interface PriceOverlayProps {
   snapshots: PriceSnapshot[];
 }
 
-const GREEN = "rgba(34, 197, 94, 0.15)";
-const RED = "rgba(239, 68, 68, 0.15)";
+const GREEN = "rgba(34, 197, 94, 0.28)";
+const RED = "rgba(239, 68, 68, 0.28)";
 const GREEN_AVG = "rgba(34, 197, 94, 0.9)";
 const RED_AVG = "rgba(239, 68, 68, 0.9)";
 const NEUTRAL_AVG = "#fbbf24";
@@ -19,6 +19,7 @@ const PADDING = { top: 20, right: 40, bottom: 30, left: 50 };
 export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [resizeCount, setResizeCount] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -95,7 +96,7 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
     const avgBuckets: Map<number, number[]> = new Map();
 
     // Draw individual market lines
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     for (const [marketId, snaps] of byMarket) {
       const start = startTimes.get(marketId);
       if (start === undefined) continue;
@@ -177,16 +178,14 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
     ctx.fillText(" Down", PADDING.left + 48, legendY);
     ctx.fillStyle = NEUTRAL_AVG;
     ctx.fillText("— Avg", PADDING.left + 88, legendY);
-  }, [markets, snapshots]);
+  }, [markets, snapshots, resizeCount]);
 
   // Resize handling
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const observer = new ResizeObserver(() => {
-      // Trigger re-render by updating canvas size — effect above will re-run
-      const canvas = canvasRef.current;
-      if (canvas) canvas.width = 0; // force repaint
+      setResizeCount((c) => c + 1);
     });
     observer.observe(container);
     return () => observer.disconnect();

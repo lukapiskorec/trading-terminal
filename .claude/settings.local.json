@@ -19,7 +19,8 @@
       "Bash(pnpm --filter scripts exec tsx:*)",
       "WebFetch(domain:docs.polybacktest.com)",
       "WebFetch(domain:api.polybacktest.com)",
-      "Bash(pnpm --filter scripts explore:pbt:*)"
+      "Bash(pnpm --filter scripts explore:pbt:*)",
+      "Bash(pnpm --filter web exec tsc:*)"
     ],
     "deny": [
       "Read(./.env*)",

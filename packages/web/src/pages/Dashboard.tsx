@@ -54,6 +54,25 @@ export function Dashboard() {
     }
   }, [wsAutoConnect, wsStatus]);
 
+  // Subscribe to the current/most-recent market's token IDs when connected
+  useEffect(() => {
+    if (wsStatus !== "connected" || markets.length === 0) return;
+
+    const now = Date.now();
+    const currentMarket =
+      markets.find((m) => {
+        const start = new Date(m.start_time).getTime();
+        const end = new Date(m.end_time).getTime();
+        return now >= start && now <= end;
+      }) ?? markets[markets.length - 1]; // fallback: most recent
+
+    if (currentMarket) {
+      ws.subscribe([currentMarket.token_id_yes, currentMarket.token_id_no]);
+    }
+
+    return () => { ws.unsubscribe(); };
+  }, [wsStatus, markets]);
+
   const handleConnect = useCallback(() => {
     if (wsStatus === "connected") {
       ws.disconnect();
@@ -94,7 +113,7 @@ export function Dashboard() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Markets" value={String(resolvedMarkets.length)} sub={`of ${markets.length} total`} />
         <StatCard
-          label="Up / Down"
+          label="Up (YES) / Down (NO)"
           value={`${upCount} / ${downCount}`}
           sub={`${upPct.toFixed(1)}% Up`}
           color={upPct > 50 ? "green" : upPct < 50 ? "red" : undefined}
@@ -128,7 +147,7 @@ export function Dashboard() {
               {resolvedMarkets.map((m) => (
                 <div
                   key={m.id}
-                  title={`${m.slug} — ${m.outcome}`}
+                  title={`${formatTime(m.start_time)} UTC — ${m.outcome} — ${m.volume ? "$" + Math.round(m.volume).toLocaleString() : "no volume"}`}
                   className={cn(
                     "h-6 w-6 rounded-sm flex items-center justify-center text-[10px] font-mono cursor-default",
                     m.outcome === "Up"

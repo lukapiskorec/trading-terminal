@@ -48,8 +48,8 @@ export function MarketStats({ outcomes }: MarketStatsProps) {
       <CardContent>
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm lg:grid-cols-4">
           <Stat label="Total Markets" value={stats.total} />
-          <Stat label="Up" value={`${stats.upCount} (${stats.upPct}%)`} className="text-green-400" />
-          <Stat label="Down" value={`${stats.downCount} (${stats.downPct}%)`} className="text-red-400" />
+          <Stat label="Up (YES)" value={`${stats.upCount} (${stats.upPct}%)`} className="text-green-400" />
+          <Stat label="Down (NO)" value={`${stats.downCount} (${stats.downPct}%)`} className="text-red-400" />
           <Stat label="Longest Up Streak" value={stats.longestUpStreak} />
           <Stat label="Longest Down Streak" value={stats.longestDownStreak} />
           <Stat label="Chi-squared p-value" value={stats.chiSquaredP} />
