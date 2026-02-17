@@ -14,7 +14,9 @@
       "Bash(taskkill:*)",
       "Bash(npx tsx:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(python3:*)",
+      "Bash(pnpm --filter scripts exec tsx:*)"
     ],
     "deny": [
       "Read(./.env*)",

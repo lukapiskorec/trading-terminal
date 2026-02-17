@@ -2,7 +2,7 @@
  * Live WebSocket data collector — runs as a long-lived Node.js process.
  *
  * Connects to Polymarket's CLOB WebSocket, subscribes to the current
- * BTC 5-min market, and snapshots prices into Supabase every 10 seconds.
+ * BTC 5-min market, and snapshots prices into Supabase every 5 seconds.
  *
  * Run: pnpm --filter scripts collect
  *
@@ -17,7 +17,7 @@ import { getEventBySlug, delay } from "./utils/polymarket.js";
 
 const WS_URL = "wss://ws-subscriptions-clob.polymarket.com/ws/market";
 const MARKET_DURATION = 300; // 5 minutes in seconds
-const SNAPSHOT_INTERVAL = 10_000; // 10 seconds
+const SNAPSHOT_INTERVAL = 5_000; // 5 seconds → 60 snapshots per 5-min market
 const PING_INTERVAL = 10_000; // required by Polymarket
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;

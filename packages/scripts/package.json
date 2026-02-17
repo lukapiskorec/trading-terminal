@@ -4,11 +4,16 @@
   "type": "module",
   "scripts": {
     "seed": "tsx src/seed-feb13.ts",
-    "collect": "tsx src/collect-live.ts"
+    "seed:feb14": "tsx src/seed-feb14.ts",
+    "collect": "tsx src/collect-live.ts",
+    "backfill": "tsx src/backfill-trades.ts",
+    "derive-key": "tsx src/derive-api-key.ts"
   },
   "dependencies": {
+    "@polymarket/clob-client": "^5.2.3",
     "@supabase/supabase-js": "^2.49.0",
     "dotenv": "^17.3.1",
+    "ethers": "5",
     "ws": "^8.19.0"
   },
   "devDependencies": {
