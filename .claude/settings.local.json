@@ -24,7 +24,8 @@
       "Bash(gh api:*)",
       "Bash(powershell.exe -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
       "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(pnpm --filter web build:*)"
     ],
     "deny": [
       "Read(./.env*)",

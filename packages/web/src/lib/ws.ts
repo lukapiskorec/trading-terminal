@@ -1,20 +1,23 @@
 /**
  * Browser-side WebSocket manager for Polymarket CLOB real-time data.
  *
- * - Connects to wss://ws-subscriptions-clob.polymarket.com/ws/market
- * - Auto-reconnect with exponential backoff
- * - PING heartbeat every 10 seconds (required by Polymarket)
- * - Exposes subscribe/unsubscribe for asset IDs
- * - Calls listeners on price updates
+ * Connects to wss://ws-subscriptions-clob.polymarket.com/ws/market
+ *
+ * Message formats from Polymarket WS:
+ * - Book snapshot:      [{asset_id, bids: [{price,size},...], asks: [...]}]
+ * - Price changes:      {price_changes: [{asset_id, price, best_bid, best_ask, side, size},...]}
+ * - Last trade price:   {event_type: "last_trade_price", asset_id, price, size, side}
  */
 
 import { WS_URL } from "./constants";
 
 export type PriceUpdate = {
   event: "price_change" | "last_trade_price" | "book";
+  assetId?: string;
   price?: number;
   bestBid?: number;
   bestAsk?: number;
+  size?: number;
 };
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
@@ -25,7 +28,7 @@ const PING_INTERVAL = 10_000;
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 
-let ws: WebSocket | null = null;
+let socket: WebSocket | null = null;
 let status: ConnectionStatus = "disconnected";
 let reconnectAttempts = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -36,6 +39,56 @@ let subscribedIds: string[] = [];
 
 const statusListeners = new Set<StatusListener>();
 const priceListeners = new Set<PriceListener>();
+
+// --- 1-second price smoothing ---
+type PriceBuffer = {
+  prices: number[];
+  bids: number[];
+  asks: number[];
+  totalSize: number;
+};
+const priceBuffers = new Map<string, PriceBuffer>();
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+const FLUSH_INTERVAL = 1_000;
+
+function getBuffer(assetId: string): PriceBuffer {
+  let buf = priceBuffers.get(assetId);
+  if (!buf) {
+    buf = { prices: [], bids: [], asks: [], totalSize: 0 };
+    priceBuffers.set(assetId, buf);
+  }
+  return buf;
+}
+
+function avg(arr: number[]): number {
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+function flushBuffers() {
+  for (const [assetId, buf] of priceBuffers) {
+    if (buf.prices.length === 0 && buf.bids.length === 0 && buf.asks.length === 0) continue;
+    const update: PriceUpdate = { event: "price_change", assetId };
+    if (buf.prices.length > 0) update.price = avg(buf.prices);
+    if (buf.bids.length > 0) update.bestBid = avg(buf.bids);
+    if (buf.asks.length > 0) update.bestAsk = avg(buf.asks);
+    if (buf.totalSize > 0) update.size = buf.totalSize;
+    emitToListeners(update);
+    buf.prices.length = 0;
+    buf.bids.length = 0;
+    buf.asks.length = 0;
+    buf.totalSize = 0;
+  }
+}
+
+function startFlush() {
+  if (flushTimer) return;
+  flushTimer = setInterval(flushBuffers, FLUSH_INTERVAL);
+}
+
+function stopFlush() {
+  if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+  priceBuffers.clear();
+}
 
 function setStatus(s: ConnectionStatus) {
   status = s;
@@ -59,17 +112,18 @@ export function onPrice(fn: PriceListener): () => void {
 }
 
 export function connect() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
 
   setStatus("connecting");
 
-  ws = new WebSocket(WS_URL);
+  socket = new WebSocket(WS_URL);
 
-  ws.onopen = () => {
+  socket.onopen = () => {
     setStatus("connected");
     reconnectAttempts = 0;
     startPing();
+    startFlush();
 
     // Re-subscribe to any asset IDs from before reconnect
     if (subscribedIds.length > 0) {
@@ -77,26 +131,23 @@ export function connect() {
     }
   };
 
-  ws.onmessage = (e) => {
+  socket.onmessage = (e) => {
     try {
       const data = JSON.parse(typeof e.data === "string" ? e.data : "");
-      const messages = Array.isArray(data) ? data : [data];
-
-      for (const msg of messages) {
-        handleMessage(msg);
-      }
+      handleRawMessage(data);
     } catch {
       // Non-JSON (pong frames, etc.)
     }
   };
 
-  ws.onclose = () => {
+  socket.onclose = () => {
     setStatus("disconnected");
     stopPing();
+    stopFlush();
     scheduleReconnect();
   };
 
-  ws.onerror = () => {
+  socket.onerror = () => {
     // onclose will fire after this
   };
 }
@@ -105,22 +156,23 @@ export function disconnect() {
   reconnectAttempts = 999; // prevent auto-reconnect
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   stopPing();
+  stopFlush();
   subscribedIds = [];
-  if (ws) { ws.close(); ws = null; }
+  if (socket) { socket.close(); socket = null; }
   setStatus("disconnected");
   reconnectAttempts = 0;
 }
 
 export function subscribe(assetIds: string[]) {
   subscribedIds = assetIds;
-  if (ws && ws.readyState === WebSocket.OPEN) {
+  if (socket && socket.readyState === WebSocket.OPEN) {
     sendSubscribe(assetIds);
   }
 }
 
 export function unsubscribe() {
-  if (ws && ws.readyState === WebSocket.OPEN && subscribedIds.length > 0) {
-    ws.send(JSON.stringify({ assets_ids: subscribedIds, type: "unsubscribe" }));
+  if (socket && socket.readyState === WebSocket.OPEN && subscribedIds.length > 0) {
+    socket.send(JSON.stringify({ assets_ids: subscribedIds, type: "unsubscribe" }));
   }
   subscribedIds = [];
 }
@@ -128,45 +180,78 @@ export function unsubscribe() {
 // --- Internal ---
 
 function sendSubscribe(ids: string[]) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ auth: {}, assets_ids: ids, type: "market" }));
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  console.log("[WS] Sending subscribe for", ids.length, "assets");
+  socket.send(JSON.stringify({ auth: {}, assets_ids: ids, type: "market" }));
 }
 
-function handleMessage(msg: any) {
-  if (!msg || typeof msg !== "object") return;
-  const event = msg.event_type ?? msg.type;
+function emitToListeners(update: PriceUpdate) {
+  for (const fn of priceListeners) fn(update);
+}
 
-  switch (event) {
-    case "price_change": {
-      const price = parseFloat(msg.price);
-      if (!isNaN(price)) {
-        for (const fn of priceListeners) fn({ event: "price_change", price });
+/**
+ * Route incoming JSON to the right handler based on its shape.
+ */
+function handleRawMessage(data: any) {
+  // 1. Book snapshot: arrives as an array of orderbook objects
+  //    [{asset_id, bids: [{price, size},...], asks: [{price, size},...], ...}]
+  if (Array.isArray(data)) {
+    for (const entry of data) {
+      if (entry.bids || entry.asks) {
+        const id = entry.asset_id;
+        if (id) {
+          const buf = getBuffer(id);
+          if (entry.bids?.[0]) buf.bids.push(parseFloat(entry.bids[0].price));
+          if (entry.asks?.[0]) buf.asks.push(parseFloat(entry.asks[0].price));
+        }
       }
-      break;
     }
-    case "last_trade_price": {
-      const price = parseFloat(msg.price);
-      if (!isNaN(price)) {
-        for (const fn of priceListeners) fn({ event: "last_trade_price", price });
-      }
-      break;
-    }
-    case "book": {
-      const update: PriceUpdate = { event: "book" };
-      if (msg.bids?.[0]) update.bestBid = parseFloat(msg.bids[0].price);
-      if (msg.asks?.[0]) update.bestAsk = parseFloat(msg.asks[0].price);
-      for (const fn of priceListeners) fn(update);
-      break;
-    }
+    return;
   }
+
+  if (!data || typeof data !== "object") return;
+
+  // 2. Price changes: {price_changes: [{asset_id, price, best_bid, best_ask, ...}]}
+  if (data.price_changes && Array.isArray(data.price_changes)) {
+    for (const pc of data.price_changes) {
+      const id = pc.asset_id;
+      if (!id) continue;
+      const buf = getBuffer(id);
+      const price = parseFloat(pc.price);
+      if (!isNaN(price)) buf.prices.push(price);
+      if (pc.best_bid) buf.bids.push(parseFloat(pc.best_bid));
+      if (pc.best_ask) buf.asks.push(parseFloat(pc.best_ask));
+      const size = parseFloat(pc.size);
+      if (!isNaN(size)) buf.totalSize += size;
+    }
+    return;
+  }
+
+  // 3. Last trade price: {event_type: "last_trade_price", asset_id, price, ...}
+  if (data.event_type === "last_trade_price") {
+    const id = data.asset_id;
+    if (id) {
+      const price = parseFloat(data.price);
+      if (!isNaN(price)) {
+        const buf = getBuffer(id);
+        buf.prices.push(price);
+        const size = parseFloat(data.size);
+        if (!isNaN(size)) buf.totalSize += size;
+      }
+    }
+    return;
+  }
+
+  // Unknown message shape — log for debugging
+  const keys = Object.keys(data).join(",");
+  console.debug("[WS] Unhandled message shape:", keys, data);
 }
 
 function startPing() {
   stopPing();
   pingTimer = setInterval(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      // Browser WebSocket doesn't have .ping() — send a text frame instead
-      ws.send("ping");
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send("ping");
     }
   }, PING_INTERVAL);
 }

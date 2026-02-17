@@ -13,12 +13,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/gamma": {
-        target: "http://localhost:3001",
-        rewrite: (path) => path.replace(/^\/api/, ""),
-      },
-      "/api/clob": {
-        target: "http://localhost:3001",
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        target: "https://gamma-api.polymarket.com",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/gamma/, ""),
       },
     },
   },
