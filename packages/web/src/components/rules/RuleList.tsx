@@ -31,15 +31,15 @@ export function RuleList({ onEdit, onNew }: RuleListProps) {
                 className={cn(
                   "flex items-center justify-between rounded-md border px-3 py-2",
                   rule.enabled
-                    ? "border-neutral-700 bg-neutral-800/50"
-                    : "border-neutral-800 bg-neutral-900/50 opacity-60",
+                    ? "border-theme bg-panel/50"
+                    : "border-theme/50 bg-surface/50 opacity-60",
                 )}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={cn(
                       "h-2 w-2 rounded-full",
-                      rule.enabled ? "bg-green-500" : "bg-neutral-600",
+                      rule.enabled ? "bg-magenta" : "bg-neutral-600",
                     )} />
                     <span className="text-sm font-medium truncate">{rule.name}</span>
                   </div>
@@ -54,7 +54,7 @@ export function RuleList({ onEdit, onNew }: RuleListProps) {
                   <Button variant="ghost" size="sm" onClick={() => onEdit(rule)}>
                     Edit
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => removeRule(rule.id)}>
+                  <Button variant="ghost" size="sm" className="text-accent hover:text-accent/80" onClick={() => removeRule(rule.id)}>
                     Delete
                   </Button>
                 </div>

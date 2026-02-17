@@ -26,7 +26,7 @@ export function BacktestTrades({ trades }: BacktestTradesProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-neutral-800 text-neutral-500">
+              <tr className="border-b border-theme text-neutral-500">
                 <th className="py-1.5 pr-3 text-left font-medium">Time</th>
                 <th className="py-1.5 pr-3 text-left font-medium">Market</th>
                 <th className="py-1.5 pr-3 text-left font-medium">Rule</th>
@@ -47,7 +47,7 @@ export function BacktestTrades({ trades }: BacktestTradesProps) {
                     bt.outcome === t.outcome,
                 );
                 return (
-                  <tr key={`${t.slug}-${t.ruleId}-${i}`} className="border-b border-neutral-800/50">
+                  <tr key={`${t.slug}-${t.ruleId}-${i}`} className="border-b border-theme/50">
                     <td className="py-1.5 pr-3 text-neutral-400 font-mono">
                       {new Date(t.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </td>
@@ -58,7 +58,7 @@ export function BacktestTrades({ trades }: BacktestTradesProps) {
                       {t.ruleName}
                     </td>
                     <td className="py-1.5 pr-3 text-right">
-                      <span className={t.price === 1 ? "text-green-400" : "text-red-400"}>
+                      <span className={t.price === 1 ? "text-magenta" : "text-accent"}>
                         {t.outcome} {t.price === 1 ? "WIN" : "LOSS"}
                       </span>
                     </td>
@@ -66,7 +66,7 @@ export function BacktestTrades({ trades }: BacktestTradesProps) {
                     <td className="py-1.5 pr-3 text-right text-neutral-400 font-mono">
                       {buyTrade ? buyTrade.price.toFixed(2) : "-"}
                     </td>
-                    <td className={`py-1.5 text-right font-mono font-medium ${t.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    <td className={`py-1.5 text-right font-mono font-medium ${t.pnl >= 0 ? "text-magenta" : "text-accent"}`}>
                       {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}
                     </td>
                   </tr>

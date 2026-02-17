@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, type IChartApi, type ISeriesApi, LineSeries, type LineData, type Time } from "lightweight-charts";
 import { computeAOI } from "@/lib/aoi";
 import type { MarketOutcome } from "@/types/market";
@@ -9,17 +9,32 @@ interface AOIChartProps {
 }
 
 const SERIES_CONFIG = [
-  { key: "aoi1" as const, label: "AOI-1", color: "#737373", width: 1 as const },
-  { key: "aoi6" as const, label: "AOI-6", color: "#facc15", width: 1 as const },
-  { key: "aoi12" as const, label: "AOI-12", color: "#fb923c", width: 2 as const },
-  { key: "aoi144" as const, label: "AOI-144", color: "#38bdf8", width: 2 as const },
-  { key: "aoi288" as const, label: "AOI-288", color: "#a78bfa", width: 3 as const },
+  { key: "aoi6" as const, label: "AOI-6", color: "#ff1ad9", width: 1 as const },
+  { key: "aoi12" as const, label: "AOI-12", color: "#b3129a", width: 2 as const },
+  { key: "aoi144" as const, label: "AOI-144", color: "#00f0ff", width: 2 as const },
+  { key: "aoi288" as const, label: "AOI-288", color: "#ffffff", width: 3 as const },
 ] as const;
 
 export function AOIChart({ outcomes }: AOIChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRefs = useRef<ISeriesApi<"Line">[]>([]);
+
+  const [visibility, setVisibility] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(SERIES_CONFIG.map((cfg) => [cfg.key, true])),
+  );
+
+  const toggleSeries = useCallback((key: string) => {
+    setVisibility((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      // Find the series index: +1 because index 0 is the reference line
+      const idx = SERIES_CONFIG.findIndex((c) => c.key === key);
+      if (idx !== -1 && seriesRefs.current[idx + 1]) {
+        seriesRefs.current[idx + 1].applyOptions({ visible: next[key] });
+      }
+      return next;
+    });
+  }, []);
 
   // Create chart once
   useEffect(() => {
@@ -32,21 +47,21 @@ export function AOIChart({ outcomes }: AOIChartProps) {
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "#262626" },
-        horzLines: { color: "#262626" },
+        vertLines: { color: "#1a0f22" },
+        horzLines: { color: "#1a0f22" },
       },
       rightPriceScale: {
-        borderColor: "#404040",
+        borderColor: "#2b1336",
         scaleMargins: { top: 0.05, bottom: 0.05 },
       },
       timeScale: {
-        borderColor: "#404040",
+        borderColor: "#2b1336",
         timeVisible: true,
         secondsVisible: false,
       },
       crosshair: {
-        horzLine: { color: "#525252", labelBackgroundColor: "#525252" },
-        vertLine: { color: "#525252", labelBackgroundColor: "#525252" },
+        horzLine: { color: "#3d1f4e", labelBackgroundColor: "#3d1f4e" },
+        vertLine: { color: "#3d1f4e", labelBackgroundColor: "#3d1f4e" },
       },
       handleScroll: true,
       handleScale: true,
@@ -128,10 +143,16 @@ export function AOIChart({ outcomes }: AOIChartProps) {
         <CardTitle>Average Outcome Index (AOI)</CardTitle>
         <div className="flex gap-3 text-xs">
           {SERIES_CONFIG.map((cfg) => (
-            <span key={cfg.key} className="flex items-center gap-1">
+            <label key={cfg.key} className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={visibility[cfg.key]}
+                onChange={() => toggleSeries(cfg.key)}
+                className="h-3 w-3 rounded border-neutral-600 bg-neutral-800 accent-magenta"
+              />
               <span className="inline-block h-0.5 w-3 rounded" style={{ backgroundColor: cfg.color }} />
-              {cfg.label}
-            </span>
+              <span className={visibility[cfg.key] ? "" : "text-neutral-600"}>{cfg.label}</span>
+            </label>
           ))}
         </div>
       </CardHeader>

@@ -41,8 +41,8 @@ export function TradeHistory() {
         ) : (
           <div className="overflow-x-auto max-h-64 overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-neutral-900">
-                <tr className="border-b border-neutral-800 text-neutral-500">
+              <thead className="sticky top-0 bg-panel">
+                <tr className="border-b border-theme text-neutral-500">
                   <th className="py-1.5 text-left font-medium">Time</th>
                   <th className="py-1.5 text-left font-medium">Side</th>
                   <th className="py-1.5 text-left font-medium">Outcome</th>
@@ -54,14 +54,14 @@ export function TradeHistory() {
               </thead>
               <tbody>
                 {trades.map((trade) => (
-                  <tr key={trade.id} className="border-b border-neutral-800/50">
+                  <tr key={trade.id} className="border-b border-theme/50">
                     <td className="py-1.5 font-mono text-neutral-400">
                       {new Date(trade.timestamp).toLocaleTimeString("en-US", { hour12: false })}
                     </td>
-                    <td className={cn("py-1.5", trade.side === "BUY" ? "text-green-400" : "text-red-400")}>
+                    <td className={cn("py-1.5", trade.side === "BUY" ? "text-magenta" : "text-accent")}>
                       {trade.side}
                     </td>
-                    <td className={cn("py-1.5", trade.outcome === "YES" ? "text-green-400" : "text-red-400")}>
+                    <td className={cn("py-1.5", trade.outcome === "YES" ? "text-magenta" : "text-accent")}>
                       {trade.outcome}
                     </td>
                     <td className="py-1.5 text-right font-mono">${trade.price.toFixed(3)}</td>

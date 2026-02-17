@@ -67,7 +67,7 @@ export function OrderPanel({ market, latestSnapshot }: OrderPanelProps) {
                 onClick={() => setOutcome("YES")}
                 className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
                   outcome === "YES"
-                    ? "bg-green-600 text-white"
+                    ? "bg-magenta text-white"
                     : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
                 }`}
               >
@@ -77,7 +77,7 @@ export function OrderPanel({ market, latestSnapshot }: OrderPanelProps) {
                 onClick={() => setOutcome("NO")}
                 className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
                   outcome === "NO"
-                    ? "bg-red-600 text-white"
+                    ? "bg-accent text-neutral-950"
                     : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
                 }`}
               >
@@ -94,16 +94,16 @@ export function OrderPanel({ market, latestSnapshot }: OrderPanelProps) {
                 onChange={(e) => { setAmount(e.target.value); setError(null); }}
                 min="1"
                 step="1"
-                className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-500"
+                className="mt-1 w-full rounded-md border border-theme bg-panel px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-accent"
               />
             </div>
 
             {/* Order preview */}
-            <div className="space-y-1 rounded-md bg-neutral-800/50 p-2.5 text-xs font-mono">
+            <div className="space-y-1 rounded-md bg-panel/50 p-2.5 text-xs font-mono">
               <Row label="Price" value={`$${price.toFixed(4)}`} />
               <Row label="Shares" value={quantity.toFixed(2)} />
               <Row label={`Fee (${feePercentage(price)})`} value={`$${fee.toFixed(4)}`} />
-              <div className="border-t border-neutral-700 pt-1 mt-1">
+              <div className="border-t border-theme pt-1 mt-1">
                 <Row label="Total cost" value={`$${totalCost.toFixed(4)}`} bold />
               </div>
             </div>
@@ -116,8 +116,8 @@ export function OrderPanel({ market, latestSnapshot }: OrderPanelProps) {
               Buy {outcome}
             </Button>
 
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            {success && <p className="text-xs text-green-400">{success}</p>}
+            {error && <p className="text-xs text-neutral-400">{error}</p>}
+            {success && <p className="text-xs text-neutral-300">{success}</p>}
           </>
         )}
       </CardContent>

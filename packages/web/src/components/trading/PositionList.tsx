@@ -13,7 +13,7 @@ export function PositionList() {
         <div className="flex items-center justify-between">
           <CardTitle>Open Positions</CardTitle>
           {positions.length > 0 && (
-            <span className={cn("text-xs font-mono", totalUnrealized >= 0 ? "text-green-400" : "text-red-400")}>
+            <span className={cn("text-xs font-mono", totalUnrealized >= 0 ? "text-magenta" : "text-accent")}>
               P&L: {totalUnrealized >= 0 ? "+" : ""}{totalUnrealized.toFixed(2)}
             </span>
           )}
@@ -26,7 +26,7 @@ export function PositionList() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-neutral-800 text-neutral-500">
+                <tr className="border-b border-theme text-neutral-500">
                   <th className="py-1.5 text-left font-medium">Market</th>
                   <th className="py-1.5 text-left font-medium">Side</th>
                   <th className="py-1.5 text-right font-medium">Qty</th>
@@ -39,11 +39,11 @@ export function PositionList() {
                 {positions.map((pos) => {
                   const pnl = pos.unrealizedPnl ?? 0;
                   return (
-                    <tr key={`${pos.marketId}-${pos.outcome}`} className="border-b border-neutral-800/50">
+                    <tr key={`${pos.marketId}-${pos.outcome}`} className="border-b border-theme/50">
                       <td className="py-1.5 font-mono text-neutral-300 max-w-[140px] truncate">
                         {formatSlug(pos.slug)}
                       </td>
-                      <td className={cn("py-1.5", pos.outcome === "YES" ? "text-green-400" : "text-red-400")}>
+                      <td className={cn("py-1.5", pos.outcome === "YES" ? "text-magenta" : "text-accent")}>
                         {pos.outcome}
                       </td>
                       <td className="py-1.5 text-right font-mono">{pos.quantity.toFixed(1)}</td>
@@ -51,7 +51,7 @@ export function PositionList() {
                       <td className="py-1.5 text-right font-mono">
                         {pos.currentPrice !== null ? `$${pos.currentPrice.toFixed(3)}` : "—"}
                       </td>
-                      <td className={cn("py-1.5 text-right font-mono", pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                      <td className={cn("py-1.5 text-right font-mono", pnl >= 0 ? "text-magenta" : "text-accent")}>
                         {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
                       </td>
                     </tr>

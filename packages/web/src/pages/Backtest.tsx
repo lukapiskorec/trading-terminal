@@ -140,14 +140,14 @@ export function Backtest() {
 
           {/* Progress */}
           {running && (
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div className="rounded-lg border border-theme bg-panel p-4">
               <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
                 <span>Running backtest...</span>
                 <span>{progress}%</span>
               </div>
-              <div className="h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-surface overflow-hidden">
                 <div
-                  className="h-full bg-sky-500 transition-all duration-200"
+                  className="h-full bg-magenta transition-all duration-200"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -155,7 +155,7 @@ export function Backtest() {
           )}
 
           {error && (
-            <div className="rounded-lg border border-red-900 bg-red-950/50 p-3 text-xs text-red-400">
+            <div className="rounded-lg border border-theme bg-panel p-3 text-xs text-neutral-400">
               {error}
             </div>
           )}
@@ -171,7 +171,7 @@ export function Backtest() {
             </>
           ) : (
             !running && (
-              <div className="flex items-center justify-center h-64 rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-500 text-sm">
+              <div className="flex items-center justify-center h-64 rounded-lg border border-theme bg-panel text-neutral-500 text-sm">
                 Configure and run a backtest to see results
               </div>
             )

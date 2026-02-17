@@ -7,11 +7,9 @@ interface OutcomeTimelineProps {
 }
 
 // Trading session boundaries in UTC
-// US session: 9:30 AM - 4:00 PM ET → 14:30 - 21:00 UTC
-// Asia session: 9:00 AM - 3:00 PM HKT (UTC+8) → 01:00 - 07:00 UTC
 const SESSIONS = [
-  { label: "Asia", startHour: 1, endHour: 7, color: "rgba(251, 191, 36, 0.08)", border: "rgba(251, 191, 36, 0.25)" },
-  { label: "US", startHour: 14.5, endHour: 21, color: "rgba(56, 189, 248, 0.08)", border: "rgba(56, 189, 248, 0.25)" },
+  { label: "Asia", startHour: 1, endHour: 7, color: "rgba(255, 26, 217, 0.08)", border: "rgba(255, 26, 217, 0.25)" },
+  { label: "US", startHour: 14.5, endHour: 21, color: "rgba(0, 240, 255, 0.08)", border: "rgba(0, 240, 255, 0.25)" },
 ] as const;
 
 const SVG_H = 80;
@@ -69,8 +67,8 @@ export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
       <CardHeader>
         <CardTitle>Outcome Timeline</CardTitle>
         <div className="flex gap-4 text-xs text-neutral-500">
-          <span className="text-green-400">■ Up (YES)</span>
-          <span className="text-red-400">■ Down (NO)</span>
+          <span className="text-magenta">■ Up (YES)</span>
+          <span className="text-accent">■ Down (NO)</span>
           <span style={{ color: SESSIONS[0].border }}>■ Asia</span>
           <span style={{ color: SESSIONS[1].border }}>■ US</span>
         </div>
@@ -126,7 +124,7 @@ export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
                     width={`${Math.max(x2 - x1, 0.5)}%`}
                     y={MARGIN.top}
                     height={SVG_H - MARGIN.top - MARGIN.bottom}
-                    fill={s.outcome === "Up" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)"}
+                    fill={s.outcome === "Up" ? "rgba(255,26,217,0.1)" : "rgba(0,240,255,0.1)"}
                     rx={2}
                     transform={`translate(${MARGIN.left}, 0)`}
                   />
@@ -146,7 +144,7 @@ export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
                   width={BAR_W}
                   height={BAR_H}
                   rx={1}
-                  fill={isUp ? "#22c55e" : "#ef4444"}
+                  fill={isUp ? "#ff1ad9" : "#00f0ff"}
                   opacity={hoveredIdx === i ? 1 : 0.7}
                   transform={`translate(${MARGIN.left - BAR_W / 2}, 0)`}
                   onMouseEnter={(e) => handleBarHover(i, e)}
@@ -182,13 +180,13 @@ export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
           {/* Hover tooltip */}
           {hoveredOutcome && (
             <div
-              className="absolute z-10 pointer-events-none rounded bg-neutral-800 border border-neutral-700 px-2.5 py-1.5 text-xs shadow-lg"
+              className="absolute z-10 pointer-events-none rounded bg-panel border border-theme px-2.5 py-1.5 text-xs shadow-lg"
               style={{ left: tooltipPos.x, top: tooltipPos.y, transform: "translate(-50%, -100%)" }}
             >
               <div className="font-mono text-neutral-300">
                 {formatTimeUTC(hoveredOutcome.start_time)}
               </div>
-              <div className={hoveredOutcome.outcome === "Up" ? "text-green-400" : "text-red-400"}>
+              <div className={hoveredOutcome.outcome === "Up" ? "text-magenta" : "text-accent"}>
                 {hoveredOutcome.outcome} — #{hoveredIdx! + 1}
               </div>
               {hoveredOutcome.volume != null && (

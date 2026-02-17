@@ -43,16 +43,16 @@ export function Settings() {
                 min="1"
                 value={balanceInput}
                 onChange={(e) => setBalanceInput(e.target.value)}
-                className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:ring-1 focus:ring-neutral-500"
+                className="flex-1 rounded-md border border-theme bg-panel px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-accent"
               />
               <Button size="sm" onClick={handleSaveBalance}>
                 Save
               </Button>
             </div>
-            {saved && <p className="text-xs text-green-400 mt-1">Saved</p>}
+            {saved && <p className="text-xs text-neutral-300 mt-1">Saved</p>}
           </div>
 
-          <div className="border-t border-neutral-800 pt-3">
+          <div className="border-t border-theme pt-3">
             <Button variant="outline" size="sm" onClick={handleResetSimulator}>
               Reset Simulator & Clear Logs
             </Button>

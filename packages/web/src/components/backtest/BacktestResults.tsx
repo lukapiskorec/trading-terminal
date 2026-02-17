@@ -34,8 +34,8 @@ export function BacktestResults({ stats, marketsProcessed }: BacktestResultsProp
 
 function Stat({ label, value, color }: { label: string; value: string; color?: boolean }) {
   let valueClass = "text-neutral-100";
-  if (color === true) valueClass = "text-green-400";
-  if (color === false) valueClass = "text-red-400";
+  if (color === true) valueClass = "text-magenta";
+  if (color === false) valueClass = "text-accent";
 
   return (
     <div>

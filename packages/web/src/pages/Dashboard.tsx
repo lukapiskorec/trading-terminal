@@ -100,13 +100,13 @@ export function Dashboard() {
         <Button variant="outline" size="sm" onClick={handleConnect}>
           <span className={cn(
             "inline-block h-2 w-2 rounded-full mr-2",
-            wsStatus === "connected" ? "bg-green-400" : wsStatus === "connecting" ? "bg-yellow-400 animate-pulse" : "bg-neutral-600",
+            wsStatus === "connected" ? "bg-magenta" : wsStatus === "connecting" ? "bg-white animate-pulse" : "bg-neutral-600",
           )} />
           {wsStatus === "connected" ? "Disconnect" : wsStatus === "connecting" ? "Connecting..." : "Connect WS"}
         </Button>
         <span className="text-xs text-neutral-500">{date}</span>
         {loading && <span className="text-xs text-neutral-500 animate-pulse">Loading...</span>}
-        {error && <span className="text-xs text-red-400">{error}</span>}
+        {error && <span className="text-xs text-neutral-400">{error}</span>}
       </div>
 
       {/* Top stats row */}
@@ -116,12 +116,12 @@ export function Dashboard() {
           label="Up (YES) / Down (NO)"
           value={`${upCount} / ${downCount}`}
           sub={`${upPct.toFixed(1)}% Up`}
-          color={upPct > 50 ? "green" : upPct < 50 ? "red" : undefined}
+          color={upPct > 50 ? "up" : upPct < 50 ? "down" : undefined}
         />
         <StatCard
           label="Current Streak"
           value={streak ? `${streak.count} ${streak.direction}` : "-"}
-          color={streak?.direction === "Up" ? "green" : streak?.direction === "Down" ? "red" : undefined}
+          color={streak?.direction === "Up" ? "up" : streak?.direction === "Down" ? "down" : undefined}
         />
         <StatCard
           label="Live Price"
@@ -151,8 +151,8 @@ export function Dashboard() {
                   className={cn(
                     "h-6 w-6 rounded-sm flex items-center justify-center text-[10px] font-mono cursor-default",
                     m.outcome === "Up"
-                      ? "bg-green-900/40 text-green-400"
-                      : "bg-red-900/40 text-red-400",
+                      ? "bg-magenta/15 text-magenta"
+                      : "bg-accent/15 text-accent",
                   )}
                 >
                   {m.outcome === "Up" ? "\u25B2" : "\u25BC"}
@@ -176,8 +176,8 @@ export function Dashboard() {
           ) : (
             <div className="overflow-x-auto max-h-80 overflow-y-auto">
               <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-neutral-900">
-                  <tr className="border-b border-neutral-800 text-neutral-500">
+                <thead className="sticky top-0 bg-panel">
+                  <tr className="border-b border-theme text-neutral-500">
                     <th className="py-1.5 text-left font-medium">Time (UTC)</th>
                     <th className="py-1.5 text-left font-medium">Slug</th>
                     <th className="py-1.5 text-right font-medium">Outcome</th>
@@ -186,7 +186,7 @@ export function Dashboard() {
                 </thead>
                 <tbody>
                   {[...markets].reverse().slice(0, 50).map((m) => (
-                    <tr key={m.id} className="border-b border-neutral-800/50">
+                    <tr key={m.id} className="border-b border-theme/50">
                       <td className="py-1.5 font-mono text-neutral-400">
                         {formatTime(m.start_time)}
                       </td>
@@ -195,7 +195,7 @@ export function Dashboard() {
                       </td>
                       <td className="py-1.5 text-right">
                         {m.outcome ? (
-                          <span className={m.outcome === "Up" ? "text-green-400" : "text-red-400"}>
+                          <span className={m.outcome === "Up" ? "text-magenta" : "text-accent"}>
                             {m.outcome}
                           </span>
                         ) : (
@@ -219,14 +219,14 @@ export function Dashboard() {
 
 // --- Helpers ---
 
-function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: "green" | "red" }) {
+function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: "up" | "down" }) {
   return (
     <Card>
       <CardContent className="py-3">
         <div className="text-xs text-neutral-500">{label}</div>
         <div className={cn(
           "text-lg font-mono font-semibold",
-          color === "green" ? "text-green-400" : color === "red" ? "text-red-400" : "text-neutral-100",
+          color === "up" ? "text-magenta" : color === "down" ? "text-accent" : "text-neutral-100",
         )}>
           {value}
         </div>

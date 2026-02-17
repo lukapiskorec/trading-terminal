@@ -58,7 +58,7 @@ export function Trade() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-red-400 text-sm">Error loading market data</p>
+          <p className="text-neutral-400 text-sm">Error loading market data</p>
           <p className="text-xs text-neutral-500 mt-1">{error}</p>
         </div>
       </div>
@@ -170,7 +170,7 @@ function MarketSelector({
                 <div>{formatTime(m.start_time)}</div>
                 <div className={cn(
                   "text-[10px]",
-                  m.outcome === "Up" ? "text-green-500" : m.outcome === "Down" ? "text-red-500" : "text-neutral-600",
+                  m.outcome === "Up" ? "text-magenta" : m.outcome === "Down" ? "text-accent" : "text-neutral-600",
                 )}>
                   {m.outcome ?? (price ? `$${price.toFixed(2)}` : "—")}
                 </div>
@@ -198,7 +198,7 @@ function PriceBar({ market, snapshots }: { market: Market; snapshots: PriceSnaps
           <div className="text-xs text-neutral-500">
             {formatTime(market.start_time)} → {formatTime(market.end_time)}
             {market.outcome && (
-              <span className={cn("ml-2 font-semibold", market.outcome === "Up" ? "text-green-400" : "text-red-400")}>
+              <span className={cn("ml-2 font-semibold", market.outcome === "Up" ? "text-magenta" : "text-accent")}>
                 Resolved: {market.outcome}
               </span>
             )}
@@ -206,7 +206,7 @@ function PriceBar({ market, snapshots }: { market: Market; snapshots: PriceSnaps
         </div>
         <div className="text-right font-mono">
           <div className="text-lg">${endPrice.toFixed(3)}</div>
-          <div className={cn("text-xs", delta >= 0 ? "text-green-400" : "text-red-400")}>
+          <div className={cn("text-xs", delta >= 0 ? "text-magenta" : "text-accent")}>
             {delta >= 0 ? "+" : ""}{delta.toFixed(3)} ({snapshots.length} pts)
           </div>
         </div>

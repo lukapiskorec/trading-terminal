@@ -147,7 +147,7 @@ export function RuleEditor({ editingRule, onDone }: RuleEditorProps) {
                   />
                 )}
                 {conditions.length > 1 && (
-                  <button onClick={() => removeCondition(idx)} className="text-neutral-600 hover:text-red-400 text-sm px-1">
+                  <button onClick={() => removeCondition(idx)} className="text-neutral-600 hover:text-accent text-sm px-1">
                     ×
                   </button>
                 )}

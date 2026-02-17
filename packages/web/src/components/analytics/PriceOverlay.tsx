@@ -8,11 +8,10 @@ interface PriceOverlayProps {
   snapshots: PriceSnapshot[];
 }
 
-const GREEN = "rgba(34, 197, 94, 0.28)";
-const RED = "rgba(239, 68, 68, 0.28)";
-const GREEN_AVG = "rgba(34, 197, 94, 0.9)";
-const RED_AVG = "rgba(239, 68, 68, 0.9)";
-const NEUTRAL_AVG = "#fbbf24";
+const MAGENTA_LINE = "rgba(255, 26, 217, 0.28)";
+const CYAN_LINE = "rgba(0, 240, 255, 0.28)";
+const WHITE_AVG = "#ffffff";
+const BAND_FILL = "rgba(255, 26, 217, 0.12)";
 
 const PADDING = { top: 20, right: 40, bottom: 30, left: 50 };
 
@@ -72,7 +71,7 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
     const yScale = (price: number) => PADDING.top + (1 - price) * plotH;
 
     // Draw grid
-    ctx.strokeStyle = "#262626";
+    ctx.strokeStyle = "#1a0f22";
     ctx.lineWidth = 0.5;
     for (let p = 0; p <= 1; p += 0.25) {
       const y = yScale(p);
@@ -92,7 +91,7 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Collect points for average line
+    // Collect points for average + stddev
     const avgBuckets: Map<number, number[]> = new Map();
 
     // Draw individual market lines
@@ -102,7 +101,7 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
       if (start === undefined) continue;
 
       const outcome = outcomeMap.get(marketId);
-      ctx.strokeStyle = outcome === "Up" ? GREEN : outcome === "Down" ? RED : "rgba(163,163,163,0.1)";
+      ctx.strokeStyle = outcome === "Up" ? MAGENTA_LINE : outcome === "Down" ? CYAN_LINE : "rgba(163,163,163,0.1)";
 
       ctx.beginPath();
       let first = true;
@@ -133,13 +132,37 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
       ctx.stroke();
     }
 
-    // Draw average line
+    // Compute average + stddev per bucket
     const avgPoints = Array.from(avgBuckets.entries())
-      .map(([sec, prices]) => ({ sec, avg: prices.reduce((a, b) => a + b, 0) / prices.length }))
+      .map(([sec, prices]) => {
+        const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+        const variance = prices.reduce((s, p) => s + (p - avg) ** 2, 0) / prices.length;
+        const stdDev = Math.sqrt(variance);
+        return { sec, avg, stdDev };
+      })
       .sort((a, b) => a.sec - b.sec);
 
+    // Draw std-dev band
     if (avgPoints.length > 1) {
-      ctx.strokeStyle = NEUTRAL_AVG;
+      ctx.fillStyle = BAND_FILL;
+      ctx.beginPath();
+      // Top edge (avg + stdDev), left to right
+      for (let i = 0; i < avgPoints.length; i++) {
+        const x = xScale(avgPoints[i].sec);
+        const y = yScale(avgPoints[i].avg + avgPoints[i].stdDev);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      // Bottom edge (avg - stdDev), right to left
+      for (let i = avgPoints.length - 1; i >= 0; i--) {
+        const x = xScale(avgPoints[i].sec);
+        const y = yScale(avgPoints[i].avg - avgPoints[i].stdDev);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Draw average line (white)
+      ctx.strokeStyle = WHITE_AVG;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       avgPoints.forEach((pt, i) => {
@@ -168,16 +191,18 @@ export function PriceOverlay({ markets, snapshots }: PriceOverlayProps) {
     ctx.font = "11px sans-serif";
     ctx.textAlign = "left";
     const legendY = 14;
-    ctx.fillStyle = GREEN_AVG;
+    ctx.fillStyle = "#ff1ad9";
     ctx.fillText("■", PADDING.left, legendY);
     ctx.fillStyle = "#a3a3a3";
     ctx.fillText(" Up", PADDING.left + 10, legendY);
-    ctx.fillStyle = RED_AVG;
+    ctx.fillStyle = "#00f0ff";
     ctx.fillText("■", PADDING.left + 38, legendY);
     ctx.fillStyle = "#a3a3a3";
     ctx.fillText(" Down", PADDING.left + 48, legendY);
-    ctx.fillStyle = NEUTRAL_AVG;
+    ctx.fillStyle = WHITE_AVG;
     ctx.fillText("— Avg", PADDING.left + 88, legendY);
+    ctx.fillStyle = "#a3a3a3";
+    ctx.fillText("± σ", PADDING.left + 128, legendY);
   }, [markets, snapshots, resizeCount]);
 
   // Resize handling

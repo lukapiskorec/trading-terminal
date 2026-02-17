@@ -33,21 +33,21 @@ export function BacktestChart({ equityCurve, startingBalance }: BacktestChartPro
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "#262626" },
-        horzLines: { color: "#262626" },
+        vertLines: { color: "#1a0f22" },
+        horzLines: { color: "#1a0f22" },
       },
       rightPriceScale: {
-        borderColor: "#404040",
+        borderColor: "#2b1336",
         scaleMargins: { top: 0.05, bottom: 0.05 },
       },
       timeScale: {
-        borderColor: "#404040",
+        borderColor: "#2b1336",
         timeVisible: true,
         secondsVisible: false,
       },
       crosshair: {
-        horzLine: { color: "#525252", labelBackgroundColor: "#525252" },
-        vertLine: { color: "#525252", labelBackgroundColor: "#525252" },
+        horzLine: { color: "#3d1f4e", labelBackgroundColor: "#3d1f4e" },
+        vertLine: { color: "#3d1f4e", labelBackgroundColor: "#3d1f4e" },
       },
       handleScroll: true,
       handleScale: true,
@@ -65,10 +65,10 @@ export function BacktestChart({ equityCurve, startingBalance }: BacktestChartPro
 
     // Equity area series
     const series = chart.addSeries(AreaSeries, {
-      lineColor: "#38bdf8",
+      lineColor: "#ff1ad9",
       lineWidth: 2,
-      topColor: "rgba(56, 189, 248, 0.15)",
-      bottomColor: "rgba(56, 189, 248, 0.02)",
+      topColor: "rgba(255, 26, 217, 0.15)",
+      bottomColor: "rgba(255, 26, 217, 0.02)",
       priceLineVisible: false,
       crosshairMarkerVisible: true,
       lastValueVisible: true,

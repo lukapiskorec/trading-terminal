@@ -10,32 +10,30 @@ const NAV_ITEMS = [
   { to: "/settings", label: "Settings", icon: "☰" },
 ] as const;
 
-export function Sidebar() {
+export function TopNav() {
   return (
-    <aside className="flex h-full w-48 flex-col border-r border-theme bg-surface px-2 py-4">
-      <div className="mb-6 px-3">
-        <h1 className="text-sm font-bold tracking-wider text-magenta uppercase">Trading Terminal</h1>
-      </div>
-      <nav className="flex flex-1 flex-col gap-1">
+    <nav className="flex h-10 items-center border-b border-theme bg-surface px-4">
+      <h1 className="mr-6 text-sm font-bold tracking-wider text-magenta uppercase">Trading Terminal</h1>
+      <div className="flex items-center gap-1">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
                 isActive
                   ? "bg-panel text-accent font-medium"
                   : "text-muted hover:bg-panel/50 hover:text-neutral-200",
               )
             }
           >
-            <span className="text-base leading-none">{item.icon}</span>
+            <span className="text-sm leading-none">{item.icon}</span>
             {item.label}
           </NavLink>
         ))}
-      </nav>
-      <div className="px-3 text-xs text-muted">BTC 5m Up/Down</div>
-    </aside>
+      </div>
+      <div className="ml-auto text-xs text-muted">BTC 5m Up/Down</div>
+    </nav>
   );
 }

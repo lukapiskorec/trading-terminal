@@ -24,8 +24,8 @@ export function ExecutionLog() {
         ) : (
           <div className="overflow-x-auto max-h-64 overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-neutral-900">
-                <tr className="border-b border-neutral-800 text-neutral-500">
+              <thead className="sticky top-0 bg-panel">
+                <tr className="border-b border-theme text-neutral-500">
                   <th className="py-1.5 text-left font-medium">Time</th>
                   <th className="py-1.5 text-left font-medium">Rule</th>
                   <th className="py-1.5 text-left font-medium">Market</th>
@@ -35,14 +35,14 @@ export function ExecutionLog() {
               </thead>
               <tbody>
                 {executions.map((exec) => (
-                  <tr key={exec.id} className="border-b border-neutral-800/50">
+                  <tr key={exec.id} className="border-b border-theme/50">
                     <td className="py-1.5 font-mono text-neutral-400">
                       {new Date(exec.timestamp).toLocaleTimeString("en-US", { hour12: false })}
                     </td>
                     <td className="py-1.5 text-neutral-300 max-w-[120px] truncate">{exec.ruleName}</td>
                     <td className="py-1.5 font-mono text-neutral-400 max-w-[100px] truncate">{formatSlug(exec.slug)}</td>
                     <td className="py-1.5 font-mono">{exec.action}</td>
-                    <td className={cn("py-1.5", exec.result === "success" ? "text-green-400" : "text-red-400")}>
+                    <td className={cn("py-1.5", exec.result === "success" ? "text-magenta" : "text-accent")}>
                       {exec.result}
                       {exec.error && <span className="text-neutral-600 ml-1">({exec.error})</span>}
                     </td>

@@ -48,7 +48,7 @@ export function Analytics() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-red-400 text-sm">Error loading data</p>
+          <p className="text-neutral-400 text-sm">Error loading data</p>
           <p className="text-xs text-neutral-500 mt-1">{error}</p>
         </div>
       </div>
