@@ -7,7 +7,9 @@
     "seed:feb14": "tsx src/seed-feb14.ts",
     "collect": "tsx src/collect-live.ts",
     "backfill": "tsx src/backfill-trades.ts",
-    "derive-key": "tsx src/derive-api-key.ts"
+    "derive-key": "tsx src/derive-api-key.ts",
+    "explore:pbt": "tsx src/explore-polybacktest.ts",
+    "sync:pbt": "tsx src/sync-polybacktest.ts"
   },
   "dependencies": {
     "@polymarket/clob-client": "^5.2.3",

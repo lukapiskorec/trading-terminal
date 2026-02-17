@@ -16,7 +16,10 @@
       "Bash(npx tsc:*)",
       "Bash(npx vite build)",
       "Bash(python3:*)",
-      "Bash(pnpm --filter scripts exec tsx:*)"
+      "Bash(pnpm --filter scripts exec tsx:*)",
+      "WebFetch(domain:docs.polybacktest.com)",
+      "WebFetch(domain:api.polybacktest.com)",
+      "Bash(pnpm --filter scripts explore:pbt:*)"
     ],
     "deny": [
       "Read(./.env*)",

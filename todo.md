@@ -1,5 +1,8 @@
 # TODO — Deferred Concerns
 
+## General
+- [ ] consistent naming - always mention both UP (YES) and DOWN (NO) to keep consistent
+
 
 ## Phase 4: Analytics Dashboard
 - [ ] `packages/web/.env` must be configured with Supabase publishable key for Analytics page to load data
