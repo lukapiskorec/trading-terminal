@@ -263,6 +263,86 @@ export function computeWalls(
   return { value: net, signal };
 }
 
+// --- 10. Bollinger Bands (%B) ---
+
+export function computeBBands(
+  klines: Kline[],
+  currentMid: number,
+  period = 20,
+  k = 2,
+): IndicatorResult {
+  if (klines.length < period) return { value: 0.5, signal: "NEUTRAL" };
+
+  const closes = klines.slice(-period).map((c) => c.c);
+  let sum = 0;
+  for (const c of closes) sum += c;
+  const sma = sum / period;
+
+  let sqSum = 0;
+  for (const c of closes) sqSum += (c - sma) ** 2;
+  const std = Math.sqrt(sqSum / period);
+
+  const upper = sma + k * std;
+  const lower = sma - k * std;
+  const bandwidth = upper - lower;
+  const pctB = bandwidth > 0 ? (currentMid - lower) / bandwidth : 0.5;
+
+  // Contrarian: near lower band = oversold = BULLISH, near upper = overbought = BEARISH
+  const signal: Signal = pctB < 0.2 ? "BULLISH" : pctB > 0.8 ? "BEARISH" : "NEUTRAL";
+  return { value: +pctB.toFixed(3), signal };
+}
+
+// --- 11. Flow Toxicity ---
+
+export function computeFlowToxicity(
+  trades: Trade[],
+  windowSec = 300,
+): IndicatorResult {
+  const cutoff = Date.now() - windowSec * 1000;
+  let buyVol = 0;
+  let sellVol = 0;
+  for (const t of trades) {
+    if (t.time >= cutoff) {
+      if (t.isBuy) buyVol += t.qty;
+      else sellVol += t.qty;
+    }
+  }
+
+  const total = buyVol + sellVol;
+  if (total === 0) return { value: 0, signal: "NEUTRAL" };
+
+  const toxicity = Math.abs(buyVol - sellVol) / total;
+  const buyDominant = buyVol > sellVol;
+
+  // High toxicity (>0.3) = informed one-sided flow
+  const signal: Signal =
+    toxicity > 0.3
+      ? buyDominant ? "BULLISH" : "BEARISH"
+      : "NEUTRAL";
+
+  // Signed toxicity for bias calculation
+  const signed = buyDominant ? toxicity : -toxicity;
+  return { value: +signed.toFixed(4), signal };
+}
+
+// --- 12. Rate of Change (ROC) ---
+
+export function computeROC(
+  klines: Kline[],
+  period = 10,
+): IndicatorResult {
+  if (klines.length < period + 1) return { value: 0, signal: "NEUTRAL" };
+
+  const current = klines[klines.length - 1].c;
+  const past = klines[klines.length - 1 - period].c;
+  if (past === 0) return { value: 0, signal: "NEUTRAL" };
+
+  const roc = ((current - past) / past) * 100;
+
+  const signal: Signal = roc > 0.1 ? "BULLISH" : roc < -0.1 ? "BEARISH" : "NEUTRAL";
+  return { value: +roc.toFixed(4), signal };
+}
+
 // --- Composite Bias Score ---
 
 interface AllIndicators {
@@ -275,10 +355,13 @@ interface AllIndicators {
   heikinAshi: IndicatorResult;
   poc: IndicatorResult;
   walls: IndicatorResult;
+  bbands: IndicatorResult;
+  flowToxicity: IndicatorResult;
+  roc: IndicatorResult;
 }
 
 export function computeBias(ind: AllIndicators): { score: number; signal: Signal } {
-  const MAX_WEIGHT = 56;
+  const MAX_WEIGHT = 71;
 
   let sum = 0;
 
@@ -298,6 +381,10 @@ export function computeBias(ind: AllIndicators): { score: number; signal: Signal
   const haStreak = typeof ind.heikinAshi.value === "number" ? ind.heikinAshi.value : 0;
   sum += Math.max(-6, Math.min(6, haStreak * 2));
 
+  // Flow Toxicity: weight 6, linear (signed toxicity × 6, clamped)
+  const toxVal = typeof ind.flowToxicity.value === "number" ? ind.flowToxicity.value : 0;
+  sum += Math.max(-6, Math.min(6, toxVal * 6));
+
   // VWAP: weight 5, binary
   sum += (ind.vwap.signal === "BULLISH" ? 5 : ind.vwap.signal === "BEARISH" ? -5 : 0);
 
@@ -306,9 +393,17 @@ export function computeBias(ind: AllIndicators): { score: number; signal: Signal
   const rsiNorm = (50 - rsiVal) / 50; // -1 (overbought) to +1 (oversold → bullish bounce)
   sum += rsiNorm * 5;
 
+  // Bollinger Bands: weight 5, linear ramp (contrarian, like RSI)
+  const pctB = typeof ind.bbands.value === "number" ? ind.bbands.value : 0.5;
+  const bbNorm = (0.5 - pctB) / 0.5; // -1 (upper band) to +1 (lower band → bullish bounce)
+  sum += bbNorm * 5;
+
   // Walls: weight 4, wall-count-scaled
   const wallNet = typeof ind.walls.value === "number" ? ind.walls.value : 0;
   sum += Math.max(-4, Math.min(4, wallNet * 2));
+
+  // ROC: weight 4, binary
+  sum += (ind.roc.signal === "BULLISH" ? 4 : ind.roc.signal === "BEARISH" ? -4 : 0);
 
   // POC: weight 3, binary
   sum += (ind.poc.signal === "BULLISH" ? 3 : ind.poc.signal === "BEARISH" ? -3 : 0);

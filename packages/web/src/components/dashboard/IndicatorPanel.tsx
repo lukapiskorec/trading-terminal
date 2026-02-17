@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import type { Signal, IndicatorResult } from "@/lib/indicators";
 
-type IndicatorKey = "obi" | "cvd" | "rsi" | "macd" | "emaCross" | "vwap" | "heikinAshi" | "poc" | "walls";
+type IndicatorKey = "obi" | "cvd" | "rsi" | "macd" | "emaCross" | "vwap" | "heikinAshi" | "poc" | "walls" | "bbands" | "flowToxicity" | "roc";
 
 const INDICATOR_LABELS: { key: IndicatorKey; label: string }[] = [
   { key: "obi", label: "OBI" },
@@ -17,6 +17,9 @@ const INDICATOR_LABELS: { key: IndicatorKey; label: string }[] = [
   { key: "heikinAshi", label: "Heikin Ashi" },
   { key: "poc", label: "POC" },
   { key: "walls", label: "Walls" },
+  { key: "bbands", label: "BBands %B" },
+  { key: "flowToxicity", label: "Flow Toxic." },
+  { key: "roc", label: "ROC" },
 ];
 
 function signalClasses(signal: Signal): string {
@@ -77,8 +80,8 @@ export function IndicatorPanel() {
           <p className="text-sm text-neutral-500">Click Connect to start Binance data feed</p>
         ) : (
           <>
-            {/* 3×3 indicator grid */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {/* 3×4 indicator grid */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {INDICATOR_LABELS.map(({ key, label }) => {
                 const result = indicators[key];
                 return (

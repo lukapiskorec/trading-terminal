@@ -11,6 +11,9 @@ import {
   computeHeikinAshi,
   computePOC,
   computeWalls,
+  computeBBands,
+  computeFlowToxicity,
+  computeROC,
   computeBias,
 } from "@/lib/indicators";
 import type { Signal, IndicatorResult } from "@/lib/indicators";
@@ -25,6 +28,9 @@ interface Indicators {
   heikinAshi: IndicatorResult | null;
   poc: IndicatorResult | null;
   walls: IndicatorResult | null;
+  bbands: IndicatorResult | null;
+  flowToxicity: IndicatorResult | null;
+  roc: IndicatorResult | null;
 }
 
 interface IndicatorState {
@@ -46,6 +52,9 @@ const emptyIndicators: Indicators = {
   heikinAshi: null,
   poc: null,
   walls: null,
+  bbands: null,
+  flowToxicity: null,
+  roc: null,
 };
 
 let recalcTimer: ReturnType<typeof setInterval> | null = null;
@@ -93,12 +102,15 @@ function recalc(set: (partial: Partial<IndicatorState>) => void) {
   const heikinAshi = computeHeikinAshi(klines);
   const poc = computePOC(klines, mid);
   const walls = computeWalls(bids, asks);
+  const bbands = computeBBands(klines, mid);
+  const flowToxicity = computeFlowToxicity(trades);
+  const roc = computeROC(klines);
 
-  const bias = computeBias({ obi, cvd, rsi, macd, emaCross, vwap, heikinAshi, poc, walls });
+  const bias = computeBias({ obi, cvd, rsi, macd, emaCross, vwap, heikinAshi, poc, walls, bbands, flowToxicity, roc });
 
   set({
     mid,
-    indicators: { obi, cvd, rsi, macd, emaCross, vwap, heikinAshi, poc, walls },
+    indicators: { obi, cvd, rsi, macd, emaCross, vwap, heikinAshi, poc, walls, bbands, flowToxicity, roc },
     bias,
   });
 }

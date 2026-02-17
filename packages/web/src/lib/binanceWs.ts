@@ -1,5 +1,8 @@
 /**
- * Binance BTCUSDT data client — orderbook (REST poll), trades + klines (WebSocket).
+ * Binance BTCUSDT data client — all data via WebSocket combined stream:
+ *   - btcusdt@depth20@100ms  (top-20 orderbook every 100ms)
+ *   - btcusdt@trade           (individual trades)
+ *   - btcusdt@kline_1m        (1-minute candles)
  *
  * Separate from ws.ts (Polymarket). Same listener pattern.
  */
@@ -39,13 +42,10 @@ type UpdateListener = () => void;
 // --- Constants ---
 
 const COMBINED_STREAM_URL =
-  "wss://stream.binance.com/stream?streams=btcusdt@trade/btcusdt@kline_1m";
-const ORDERBOOK_URL =
-  "https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=20";
+  "wss://stream.binance.com/stream?streams=btcusdt@trade/btcusdt@kline_1m/btcusdt@depth20@100ms";
 const KLINES_BOOTSTRAP_URL =
   "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100";
 
-const ORDERBOOK_POLL_MS = 2_000;
 const TRADE_BUFFER_SEC = 600;
 const TRADE_BUFFER_MAX = 5_000;
 const KLINE_BUFFER_MAX = 150;
@@ -58,7 +58,6 @@ let socket: WebSocket | null = null;
 let status: BinanceStatus = "disconnected";
 let reconnectAttempts = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let orderbookTimer: ReturnType<typeof setInterval> | null = null;
 
 const state: BinanceState = {
   mid: null,
@@ -109,14 +108,12 @@ export function connect() {
   // Bootstrap historical klines before opening WS
   bootstrapKlines().then(() => {
     openSocket();
-    startOrderbookPoll();
   });
 }
 
 export function disconnect() {
   reconnectAttempts = 999; // prevent auto-reconnect
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-  stopOrderbookPoll();
   if (socket) { socket.close(); socket = null; }
   setStatus("disconnected");
   reconnectAttempts = 0;
@@ -164,6 +161,8 @@ function openSocket() {
         handleTrade(data);
       } else if (stream === "btcusdt@kline_1m") {
         handleKline(data);
+      } else if (stream === "btcusdt@depth20@100ms") {
+        handleDepth(data);
       }
     } catch {
       // ignore non-JSON
@@ -232,46 +231,23 @@ function handleKline(data: any) {
   notifyUpdate();
 }
 
-// --- Orderbook REST poll ---
+function handleDepth(data: any) {
+  // depth20@100ms pushes full top-20 snapshot each time
+  state.bids = (data.bids as string[][]).map(([p, q]) => [parseFloat(p), parseFloat(q)]);
+  state.asks = (data.asks as string[][]).map(([p, q]) => [parseFloat(p), parseFloat(q)]);
 
-function startOrderbookPoll() {
-  stopOrderbookPoll();
-  pollOrderbook(); // immediate first fetch
-  orderbookTimer = setInterval(pollOrderbook, ORDERBOOK_POLL_MS);
-}
-
-function stopOrderbookPoll() {
-  if (orderbookTimer) { clearInterval(orderbookTimer); orderbookTimer = null; }
-}
-
-async function pollOrderbook() {
-  try {
-    const res = await fetch(ORDERBOOK_URL);
-    if (!res.ok) return;
-    const data = await res.json();
-
-    state.bids = (data.bids as string[][]).map(([p, q]) => [parseFloat(p), parseFloat(q)]);
-    state.asks = (data.asks as string[][]).map(([p, q]) => [parseFloat(p), parseFloat(q)]);
-
-    if (state.bids.length > 0 && state.asks.length > 0) {
-      state.mid = (state.bids[0][0] + state.asks[0][0]) / 2;
-    }
-
-    notifyUpdate();
-  } catch {
-    // retry on next poll
+  if (state.bids.length > 0 && state.asks.length > 0) {
+    state.mid = (state.bids[0][0] + state.asks[0][0]) / 2;
   }
+
+  notifyUpdate();
 }
 
 // --- Reconnect ---
 
 function scheduleReconnect() {
   if (reconnectAttempts >= 999) return;
-  stopOrderbookPoll();
   const delayMs = Math.min(RECONNECT_BASE_MS * 2 ** reconnectAttempts, RECONNECT_MAX_MS);
   reconnectAttempts++;
-  reconnectTimer = setTimeout(() => {
-    openSocket();
-    startOrderbookPoll();
-  }, delayMs);
+  reconnectTimer = setTimeout(openSocket, delayMs);
 }

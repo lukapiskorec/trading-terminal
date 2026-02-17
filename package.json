@@ -11,7 +11,8 @@
     "dev": "concurrently --names proxy,web --prefix-colors blue,green \"pnpm --filter proxy dev\" \"pnpm --filter web dev\"",
     "sync": "pnpm --filter scripts sync:pbt",
     "seed:feb13": "pnpm --filter scripts seed",
-    "seed:feb14": "pnpm --filter scripts seed:feb14"
+    "seed:feb14": "pnpm --filter scripts seed:feb14",
+    "collectind": "pnpm --filter scripts collect:indicators"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

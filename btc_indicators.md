@@ -274,11 +274,93 @@ All data comes from Binance via `packages/web/src/lib/binanceWs.ts`:
 
 ---
 
+## Indicator #10: Bollinger Bands (%B)
+
+**Function:** `computeBBands(klines, currentMid, period?, k?)`
+
+**What it measures:** Price position relative to its volatility envelope — is price stretched to an extreme or near the mean?
+
+**Calculation:**
+1. Compute `SMA(20)` of closing prices → middle band
+2. Compute standard deviation over the same 20 closes → `σ`
+3. `Upper band = SMA + 2σ`, `Lower band = SMA - 2σ`
+4. `%B = (currentMid - Lower) / (Upper - Lower)`
+
+**Output range:** Typically 0 to 1 (can exceed when price breaks outside bands)
+
+**Sentiment (contrarian):**
+- `%B < 0.2` → **BULLISH** (price near lower band, oversold)
+- `%B > 0.8` → **BEARISH** (price near upper band, overbought)
+- Otherwise → **NEUTRAL**
+
+**Parameters:** `period = 20, k = 2` (standard Bollinger settings)
+
+**Notes:**
+- Uses population standard deviation (not sample), consistent with most charting platforms
+- Requires at least 20 candles. Returns `{value: 0.5, signal: NEUTRAL}` if insufficient
+- Complements RSI — RSI measures momentum extremes, BBands measures volatility extremes
+- Historically available from kline data
+
+---
+
+## Indicator #11: Flow Toxicity
+
+**Function:** `computeFlowToxicity(trades, windowSec?)`
+
+**What it measures:** Whether recent order flow is one-sided and "toxic" — indicating informed traders are active on one side.
+
+**Calculation:**
+1. Sum buy volume and sell volume over the last `windowSec` seconds
+2. `toxicity = |Vbuy - Vsell| / (Vbuy + Vsell)` (0 to 1)
+3. Sign by dominant side: positive if buy-dominated, negative if sell-dominated
+
+**Output:** Signed toxicity ratio (-1 to +1). Magnitude = how one-sided; sign = which side.
+
+**Sentiment:**
+- `toxicity > 0.3` AND buy-dominated → **BULLISH** (informed buying)
+- `toxicity > 0.3` AND sell-dominated → **BEARISH** (informed selling)
+- `toxicity <= 0.3` → **NEUTRAL** (balanced flow)
+
+**Parameters:** `windowSec = 300` (5 minutes)
+
+**Notes:**
+- This is a simplified VPIN proxy. True VPIN uses volume buckets and bulk classification; ours uses Binance's per-trade aggressor flag which is more accurate for individual trades
+- Differs from CVD: CVD is raw BTC quantity delta, Flow Toxicity is normalized ratio. CVD tells you net direction, toxicity tells you how informed/confident that direction is
+- Not available historically (requires live trade stream)
+
+---
+
+## Indicator #12: Rate of Change (ROC)
+
+**Function:** `computeROC(klines, period?)`
+
+**What it measures:** Simple price momentum — percentage change over a fixed lookback period.
+
+**Calculation:**
+1. `ROC = (close_now - close_N_ago) / close_N_ago × 100`
+
+**Output:** Percentage (e.g., +0.25 means price up 0.25% over the period)
+
+**Sentiment:**
+- `ROC > +0.1%` → **BULLISH**
+- `ROC < -0.1%` → **BEARISH**
+- Otherwise → **NEUTRAL**
+
+**Parameters:** `period = 10` (10-minute lookback on 1-min candles)
+
+**Notes:**
+- The 0.1% dead-band prevents noise from flat markets triggering signals. For BTC at $97k, 0.1% ≈ $97 — reasonable threshold for a 10-minute window
+- Requires at least 11 candles. Returns `{value: 0, signal: NEUTRAL}` if insufficient
+- Historically available from kline data
+- Simpler than MACD but more responsive — no smoothing delay
+
+---
+
 ## Composite Bias Score
 
 **Function:** `computeBias(allIndicators)`
 
-**What it measures:** A single sentiment score combining all 9 indicators with different weights.
+**What it measures:** A single sentiment score combining all 12 indicators with different weights.
 
 **Calculation:**
 
@@ -291,14 +373,17 @@ Each indicator contributes to a weighted sum. The sum is then normalized to a -1
 | MACD | 8 | Binary: BULLISH → +8, BEARISH → -8, NEUTRAL → 0 |
 | CVD | 7 | Binary: BULLISH → +7, BEARISH → -7, NEUTRAL → 0 |
 | Heikin Ashi | 6 | Streak-scaled: `clamp(streak × 2, -6, +6)` |
+| Flow Toxicity | 6 | Linear: `clamp(signedToxicity × 6, -6, +6)` |
 | VWAP | 5 | Binary: BULLISH → +5, BEARISH → -5, NEUTRAL → 0 |
 | RSI | 5 | Linear ramp: `((50 - rsi) / 50) × 5` — maps RSI 0→+5, RSI 50→0, RSI 100→-5 |
+| Bollinger Bands | 5 | Linear ramp: `((0.5 - %B) / 0.5) × 5` — maps %B 0→+5, %B 0.5→0, %B 1→-5 |
 | Walls | 4 | Wall-count-scaled: `clamp(net × 2, -4, +4)` |
+| ROC | 4 | Binary: ROC > +0.1% → +4, ROC < -0.1% → -4, else → 0 |
 | POC | 3 | Binary: BULLISH → +3, BEARISH → -3, NEUTRAL → 0 |
 
-**Maximum possible sum** = 10 + 8 + 8 + 7 + 6 + 5 + 5 + 4 + 3 = **56**
+**Maximum possible sum** = 10 + 8 + 8 + 7 + 6 + 6 + 5 + 5 + 5 + 4 + 4 + 3 = **71**
 
-**Normalization:** `bias = (sum / 56) × 100`, clamped to [-100, +100]
+**Normalization:** `bias = (sum / 71) × 100`, clamped to [-100, +100]
 
 **Sentiment:**
 - `bias > +10` → **BULLISH**
@@ -311,9 +396,12 @@ Each indicator contributes to a weighted sum. The sum is then normalized to a -1
 - **MACD (8):** Momentum confirmation — when MACD and EMA Cross agree, it's a strong signal
 - **CVD (7):** Actual executed volume intent, harder to fake than orderbook
 - **Heikin Ashi (6):** Trend persistence — smoothed candles reduce noise
+- **Flow Toxicity (6):** Informed flow detection — when high toxicity aligns with direction, it's a strong signal. Same weight as HA because both measure conviction
 - **VWAP (5):** Institutional benchmark, but our rolling window is non-standard
 - **RSI (5):** Useful for mean-reversion at extremes, but less meaningful at 50
+- **Bollinger Bands (5):** Volatility-based mean-reversion — complements RSI with a different lens. Same weight since both are contrarian
 - **Walls (4):** Informative but easily manipulated
+- **ROC (4):** Simple momentum confirmation — overlaps with EMA/MACD so lower weight. Useful for its speed (no smoothing lag)
 - **POC (3):** Supporting context, simplified calculation
 
 ---
@@ -348,6 +436,9 @@ Minimum candles needed before each indicator produces a real signal:
 | Heikin Ashi | 2 | 2 min |
 | POC | 1 | 1 min |
 | Walls | 0 (orderbook only) | Immediate |
+| Bollinger Bands | 20 | 20 min |
+| Flow Toxicity | 0 (trades only) | Immediate (but needs trades to accumulate) |
+| ROC | 11 | 11 min |
 
 On connect, 100 historical candles are bootstrapped from Binance REST, so RSI, MACD, and EMA Cross are available immediately.
 
@@ -368,8 +459,11 @@ For backtesting against Polymarket outcomes:
 | Heikin Ashi | Yes | Binance REST klines |
 | POC | Yes | Binance REST klines |
 | Walls | No — requires live orderbook | Live collector only |
+| Bollinger Bands | Yes | Binance REST klines |
+| Flow Toxicity | No — requires live trade stream | Live collector only |
+| ROC | Yes | Binance REST klines |
 
-The live collector (`collect-indicators.ts`) stores all values to `btc_indicator_snapshots` at 1-second resolution. Historical backfill can only populate the 6 kline-based indicators; OBI, CVD, and Walls will be null.
+The live collector (`collect-indicators.ts`) stores all values to `btc_indicator_snapshots` at 1-second resolution. Historical backfill can only populate the 8 kline-based indicators; OBI, CVD, Walls, and Flow Toxicity will be null.
 
 ---
 
