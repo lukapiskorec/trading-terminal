@@ -141,9 +141,61 @@ interface OpenPosition {
   ruleName: string;
 }
 
+function executeBuy(
+  rule: TradingRule,
+  resolvedOutcome: "YES" | "NO",
+  priceYes: number,
+  snapTimeMs: number,
+  timeToClose: number,
+  market: SerializedMarket,
+  snap: SerializedSnapshot,
+  balance: number,
+  openPositions: OpenPosition[],
+  trades: BacktestTrade[],
+  ruleName: string,
+): number /* new balance */ {
+  const entryPrice = resolvedOutcome === "YES" ? priceYes : 1 - priceYes;
+  const quantity = Math.floor(rule.action.amount / entryPrice);
+  if (quantity <= 0) return balance;
+
+  const cost = buyCost(entryPrice, quantity);
+  if (cost > balance) return balance;
+
+  const fee = orderFee(entryPrice, quantity);
+  balance -= cost;
+
+  openPositions.push({
+    marketId: market.id,
+    slug: market.slug,
+    outcome: resolvedOutcome,
+    quantity,
+    entryPrice,
+    ruleId: rule.id,
+    ruleName,
+  });
+
+  trades.push({
+    marketId: market.id,
+    slug: market.slug,
+    side: "BUY",
+    outcome: resolvedOutcome,
+    price: entryPrice,
+    quantity,
+    fee,
+    total: cost,
+    pnl: 0,
+    ruleId: rule.id,
+    ruleName,
+    timestamp: snap.recorded_at,
+    timeToClose,
+  });
+
+  return balance;
+}
+
 function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
   const { config, markets, snapshots, outcomes } = request;
-  const { rules, startingBalance, aoiWindow } = config;
+  const { rules, startingBalance, aoiWindow, ruleMode, fallbackRule, fallbackTriggerTTC } = config;
 
   const snapshotsByMarket = new Map<number, SerializedSnapshot[]>();
   for (const snap of snapshots) {
@@ -164,7 +216,12 @@ function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
   let balance = startingBalance;
   const trades: BacktestTrade[] = [];
   const equityCurve: EquityPoint[] = [{ time: sortedMarkets[0]?.start_time ?? "", equity: balance }];
+  // INDEPENDENT mode: per-rule cooldown tracking
   const lastFired = new Map<string, number>();
+  // EXCLUSIVE mode + fallback: shared cooldown block (ms timestamp until blocked)
+  let globalBlockedUntil = 0;
+  // Empty map passed to evaluateRules in EXCLUSIVE mode — global block handles timing instead
+  const noLastFired = new Map<string, number>();
   let marketsProcessed = 0;
 
   for (let mi = 0; mi < sortedMarkets.length; mi++) {
@@ -174,6 +231,11 @@ function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
 
     const currentAOI = computeAOIN(outcomeBinaries, aoiWindow);
     const openPositions: OpenPosition[] = [];
+    let marketFiredAny = false;
+
+    // First snapshot at or below the fallback TTC threshold (recorded for potential fallback use)
+    let fallbackSnap: SerializedSnapshot | null = null;
+    let fallbackSnapTimeMs = 0;
 
     for (const snap of marketSnaps) {
       const priceYes = snap.mid_price_yes ?? snap.best_bid_yes ?? 0.5;
@@ -181,8 +243,17 @@ function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
 
       const snapTimeMs = new Date(snap.recorded_at).getTime();
       const timeToClose = Math.max(0, (marketEndMs - snapTimeMs) / 1000);
-      const spread = (snap.best_ask_yes ?? priceYes) - (snap.best_bid_yes ?? priceYes);
 
+      // Record the first snap that hits the fallback TTC threshold
+      if (fallbackRule && fallbackSnap === null && timeToClose <= fallbackTriggerTTC) {
+        fallbackSnap = snap;
+        fallbackSnapTimeMs = snapTimeMs;
+      }
+
+      // Global block: set by EXCLUSIVE rule fires and by fallback cooldown (both modes)
+      if (snapTimeMs < globalBlockedUntil) continue;
+
+      const spread = (snap.best_ask_yes ?? priceYes) - (snap.best_bid_yes ?? priceYes);
       const ctx: MarketContext = {
         slug: market.slug,
         priceYes,
@@ -193,49 +264,57 @@ function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
         aoi: currentAOI,
       };
 
-      const matches = evaluateRules(rules, ctx, lastFired, snapTimeMs);
+      // EXCLUSIVE mode: pass empty lastFired so individual cooldowns don't apply —
+      // the global block is the sole cooldown mechanism.
+      // INDEPENDENT mode: pass per-rule lastFired as before.
+      const effectiveLastFired = ruleMode === "EXCLUSIVE" ? noLastFired : lastFired;
+      const matches = evaluateRules(rules, ctx, effectiveLastFired, snapTimeMs);
 
       for (const { rule, resolvedOutcome } of matches) {
         if (rule.action.type !== "BUY") continue;
+        // In EXCLUSIVE mode a rule fired earlier in this loop iteration may have set the block
+        if (ruleMode === "EXCLUSIVE" && snapTimeMs < globalBlockedUntil) break;
 
-        // Use the correct token price: YES tokens cost priceYes, NO tokens cost priceNo
-        const entryPrice = resolvedOutcome === "YES" ? priceYes : ctx.priceNo;
-        const quantity = Math.floor(rule.action.amount / entryPrice);
-        if (quantity <= 0) continue;
+        balance = executeBuy(
+          rule, resolvedOutcome, priceYes, snapTimeMs, timeToClose,
+          market, snap, balance, openPositions, trades, rule.name,
+        );
 
-        const cost = buyCost(entryPrice, quantity);
-        if (cost > balance) continue;
+        marketFiredAny = true;
 
-        const fee = orderFee(entryPrice, quantity);
-        balance -= cost;
+        if (ruleMode === "INDEPENDENT") {
+          lastFired.set(rule.id, snapTimeMs);
+        } else {
+          // EXCLUSIVE: the fired rule's cooldown blocks everyone
+          globalBlockedUntil = Math.max(globalBlockedUntil, snapTimeMs + rule.cooldown * 1000);
+        }
+      }
+    }
 
-        openPositions.push({
-          marketId: market.id,
-          slug: market.slug,
-          outcome: resolvedOutcome,
-          quantity,
-          entryPrice,
-          ruleId: rule.id,
-          ruleName: rule.name,
-        });
+    // Fallback: fires only if no primary rule triggered AND the TTC threshold was reached
+    // AND the global block (from a previous market's exclusive/fallback) has already expired
+    if (fallbackRule && !marketFiredAny && fallbackSnap !== null && fallbackSnapTimeMs >= globalBlockedUntil) {
+      const priceYes = fallbackSnap.mid_price_yes ?? fallbackSnap.best_bid_yes ?? 0.5;
+      if (priceYes > 0 && priceYes < 1) {
+        const fallbackTTC = Math.max(0, (marketEndMs - fallbackSnapTimeMs) / 1000);
+        const resolvedOutcome: "YES" | "NO" = fallbackRule.randomConfig
+          ? Math.random() < fallbackRule.randomConfig.upRatio ? "YES" : "NO"
+          : fallbackRule.action.outcome;
 
-        trades.push({
-          marketId: market.id,
-          slug: market.slug,
-          side: "BUY",
-          outcome: resolvedOutcome,
-          price: entryPrice,
-          quantity,
-          fee,
-          total: cost,
-          pnl: 0,
-          ruleId: rule.id,
-          ruleName: rule.name,
-          timestamp: snap.recorded_at,
-          timeToClose,
-        });
+        balance = executeBuy(
+          fallbackRule, resolvedOutcome, priceYes, fallbackSnapTimeMs, fallbackTTC,
+          market, fallbackSnap, balance, openPositions, trades, `[FB] ${fallbackRule.name}`,
+        );
 
-        lastFired.set(rule.id, snapTimeMs);
+        // Fallback cooldown blocks all rules going forward (both modes)
+        globalBlockedUntil = Math.max(
+          globalBlockedUntil,
+          fallbackSnapTimeMs + fallbackRule.cooldown * 1000,
+        );
+        // In INDEPENDENT mode also reset per-rule lastFired so individual checks align
+        if (ruleMode === "INDEPENDENT") {
+          for (const rule of rules) lastFired.set(rule.id, fallbackSnapTimeMs);
+        }
       }
     }
 
@@ -269,6 +348,10 @@ function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
 
     equityCurve.push({ time: market.end_time, equity: balance });
     marketsProcessed++;
+
+    // Cooldowns never carry across market boundaries — reset at end of each market
+    lastFired.clear();
+    globalBlockedUntil = 0;
 
     if (mi % 20 === 0) {
       const msg: WorkerResponse = { type: "progress", percent: Math.round((mi / sortedMarkets.length) * 100) };

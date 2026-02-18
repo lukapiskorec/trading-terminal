@@ -2,12 +2,24 @@ import type { TradingRule } from "./rule";
 
 /** Configuration for a backtest run */
 export interface BacktestConfig {
-  /** Rules to evaluate during replay */
+  /** Primary rules to evaluate during replay */
   rules: TradingRule[];
   /** Starting USDC balance */
   startingBalance: number;
   /** Which AOI window to use for rule conditions (e.g. 6, 12) */
   aoiWindow: number;
+  /**
+   * INDEPENDENT: each rule has its own cooldown, rules don't interact.
+   * EXCLUSIVE: when any rule fires, its cooldown blocks all other rules too.
+   */
+  ruleMode: "INDEPENDENT" | "EXCLUSIVE";
+  /**
+   * Optional fallback rule that fires at fallbackTriggerTTC if no primary rule
+   * fired during the market. Its cooldown then blocks all rules going forward.
+   */
+  fallbackRule: TradingRule | null;
+  /** Time-to-close threshold (seconds) at which the fallback triggers */
+  fallbackTriggerTTC: number;
 }
 
 /** A single trade executed during backtesting */
