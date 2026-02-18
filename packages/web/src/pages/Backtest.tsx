@@ -3,6 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import type { ShellContext } from "@/components/layout/Shell";
 import { useMarketStore } from "@/stores/marketStore";
 import { useRulesStore } from "@/stores/rulesStore";
+import type { RuleExecution } from "@/stores/rulesStore";
 import { BacktestConfig as BacktestConfigPanel } from "@/components/backtest/BacktestConfig";
 import { BacktestResults } from "@/components/backtest/BacktestResults";
 import { BacktestChart } from "@/components/backtest/BacktestChart";
@@ -18,11 +19,13 @@ export function Backtest() {
   const { date } = useOutletContext<ShellContext>();
   const { markets, snapshots, outcomes, loading, fetchMarketsByDate, fetchSnapshots, fetchOutcomes } =
     useMarketStore();
-  const rules = useRulesStore((s) => s.rules);
+  const { rules, lastBacktestResult, setBacktestResult, logExecutionsBatch, clearExecutions } =
+    useRulesStore();
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<BacktestResult | null>(null);
+  // Initialize from persisted result so navigating away and back preserves it
+  const [result, setResult] = useState<BacktestResult | null>(lastBacktestResult);
   const [error, setError] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
@@ -47,7 +50,6 @@ export function Backtest() {
 
   const handleRun = useCallback(
     (config: BacktestConfig) => {
-      // Terminate previous worker if still running
       workerRef.current?.terminate();
 
       setRunning(true);
@@ -67,11 +69,34 @@ export function Backtest() {
           case "progress":
             setProgress(msg.percent);
             break;
-          case "done":
-            setResult(msg.result);
+          case "done": {
+            const backtestResult = msg.result;
+            setResult(backtestResult);
+            setBacktestResult(backtestResult); // persist across navigation
+
+            // Populate Execution Log with BUY trades from this backtest
+            clearExecutions();
+            const execs: RuleExecution[] = backtestResult.trades
+              .filter((t) => t.side === "BUY")
+              .reverse() // newest-first to match execution log ordering
+              .map((t) => ({
+                id: crypto.randomUUID(),
+                ruleId: t.ruleId,
+                ruleName: t.ruleName,
+                slug: t.slug,
+                action: `BUY ${t.outcome} qty:${t.quantity} @ ${t.price.toFixed(3)}`,
+                result: "success" as const,
+                timestamp: t.timestamp,
+                price: t.price,
+                outcome: t.outcome,
+                marketId: t.marketId,
+              }));
+            logExecutionsBatch(execs);
+
             setRunning(false);
             setProgress(100);
             break;
+          }
           case "error":
             setError(msg.message);
             setRunning(false);
@@ -84,7 +109,6 @@ export function Backtest() {
         setRunning(false);
       };
 
-      // Serialize data for the worker (strip unnecessary fields)
       const payload: WorkerRequest = {
         type: "run",
         payload: {
@@ -118,7 +142,7 @@ export function Backtest() {
 
       worker.postMessage(payload);
     },
-    [markets, snapshots, outcomes, date],
+    [markets, snapshots, outcomes, date, setBacktestResult, logExecutionsBatch, clearExecutions],
   );
 
   const resolvedMarkets = markets.filter((m) => m.outcome !== null).length;
@@ -138,7 +162,6 @@ export function Backtest() {
         <div className="space-y-4">
           <BacktestConfigPanel rules={rules} running={running} onRun={handleRun} />
 
-          {/* Progress */}
           {running && (
             <div className="rounded-lg border border-theme bg-panel p-4">
               <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">

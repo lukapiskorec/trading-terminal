@@ -24,6 +24,7 @@ export interface BacktestTrade {
   ruleId: string;
   ruleName: string;
   timestamp: string; // market start_time
+  timeToClose?: number; // seconds remaining at time of BUY (undefined for SETTLE)
 }
 
 /** A point on the equity curve */

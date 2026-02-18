@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TradingRule } from "@/types/rule";
+import type { BacktestResult } from "@/types/backtest";
 
 export interface RuleExecution {
   id: string;
@@ -11,21 +12,27 @@ export interface RuleExecution {
   result: "success" | "failed";
   error?: string;
   timestamp: string;    // ISO 8601
+  // Chart data for click-to-expand
+  price?: number;
+  outcome?: "YES" | "NO";
+  marketId?: number;
 }
 
 interface RulesState {
   rules: TradingRule[];
   executions: RuleExecution[];
-  /** ruleId → last fire timestamp (ms) for cooldown tracking */
   lastFired: Record<string, number>;
+  lastBacktestResult: BacktestResult | null;
 
   addRule: (rule: TradingRule) => void;
   updateRule: (id: string, updates: Partial<TradingRule>) => void;
   removeRule: (id: string) => void;
   toggleRule: (id: string) => void;
   logExecution: (exec: RuleExecution) => void;
+  logExecutionsBatch: (execs: RuleExecution[]) => void;
   recordFired: (ruleId: string, timestamp: number) => void;
   clearExecutions: () => void;
+  setBacktestResult: (result: BacktestResult | null) => void;
 }
 
 export const useRulesStore = create<RulesState>()(
@@ -34,6 +41,7 @@ export const useRulesStore = create<RulesState>()(
       rules: [],
       executions: [],
       lastFired: {},
+      lastBacktestResult: null,
 
       addRule: (rule) => set({ rules: [...get().rules, rule] }),
 
@@ -55,10 +63,15 @@ export const useRulesStore = create<RulesState>()(
       logExecution: (exec) =>
         set({ executions: [exec, ...get().executions].slice(0, 200) }),
 
+      logExecutionsBatch: (execs) =>
+        set({ executions: [...execs, ...get().executions].slice(0, 200) }),
+
       recordFired: (ruleId, timestamp) =>
         set({ lastFired: { ...get().lastFired, [ruleId]: timestamp } }),
 
       clearExecutions: () => set({ executions: [], lastFired: {} }),
+
+      setBacktestResult: (result) => set({ lastBacktestResult: result }),
     }),
     { name: "trading-rules" },
   ),

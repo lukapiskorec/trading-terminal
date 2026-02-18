@@ -67,13 +67,30 @@ export function RuleList({ onEdit, onNew }: RuleListProps) {
   );
 }
 
-function formatRuleSummary(rule: TradingRule): string {
-  const conds = rule.conditions.map((c) => {
-    if (c.operator === "between" && Array.isArray(c.value)) {
-      return `${c.field} ${c.value[0]}–${c.value[1]}`;
-    }
-    return `${c.field} ${c.operator} ${c.value}`;
-  }).join(" AND ");
+const FIELD_SHORT: Record<string, string> = {
+  priceYes: "P↑(YES)",
+  priceNo:  "P↓(NO)",
+  spread: "spread",
+  volume: "volume",
+  timeToClose: "ttc",
+  aoi: "aoi",
+};
 
-  return `IF ${conds} → ${rule.action.type} ${rule.action.outcome} $${rule.action.amount} (cd: ${rule.cooldown}s)`;
+function formatRuleSummary(rule: TradingRule): string {
+  if (rule.randomConfig) {
+    const upPct = Math.round(rule.randomConfig.upRatio * 100);
+    return `RANDOM ${upPct}% UP / ${100 - upPct}% DOWN @ ttc≤${rule.randomConfig.triggerAtTimeToClose}s → BUY $${rule.action.amount}`;
+  }
+
+  const sep = (rule.conditionMode ?? "AND") === "OR" ? " OR " : " AND ";
+  const conds = rule.conditions.map((c) => {
+    const field = FIELD_SHORT[c.field] ?? c.field;
+    if (c.operator === "between" && Array.isArray(c.value)) {
+      return `${field} ${c.value[0]}–${c.value[1]}`;
+    }
+    return `${field} ${c.operator} ${c.value}`;
+  }).join(sep);
+
+  const outcome = rule.action.outcome === "YES" ? "UP(YES)" : "DOWN(NO)";
+  return `IF ${conds} → ${rule.action.type} ${outcome} $${rule.action.amount} (cd: ${rule.cooldown}s)`;
 }

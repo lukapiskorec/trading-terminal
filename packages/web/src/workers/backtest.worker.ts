@@ -41,11 +41,18 @@ function buyCost(price: number, quantity: number, feeRate = DEFAULT_FEE_RATE): n
 
 interface MarketContext {
   slug: string;
-  price: number;
+  priceYes: number;
+  priceNo: number;
   spread: number;
   volume: number;
   timeToClose: number;
   aoi: number;
+}
+
+interface RuleMatch {
+  rule: TradingRule;
+  resolvedOutcome: "YES" | "NO";
+  context: MarketContext;
 }
 
 function evaluateRules(
@@ -53,8 +60,8 @@ function evaluateRules(
   context: MarketContext,
   lastFired: Map<string, number>,
   nowMs: number,
-): { rule: TradingRule; context: MarketContext }[] {
-  const matches: { rule: TradingRule; context: MarketContext }[] = [];
+): RuleMatch[] {
+  const matches: RuleMatch[] = [];
 
   for (const rule of rules) {
     if (!rule.enabled) continue;
@@ -63,8 +70,22 @@ function evaluateRules(
     const lastTime = lastFired.get(rule.id) ?? 0;
     if (nowMs - lastTime < rule.cooldown * 1000) continue;
 
-    if (rule.conditions.every((c) => evaluateCondition(c, context))) {
-      matches.push({ rule, context });
+    if (rule.randomConfig) {
+      if (context.timeToClose <= rule.randomConfig.triggerAtTimeToClose) {
+        const resolvedOutcome: "YES" | "NO" =
+          Math.random() < rule.randomConfig.upRatio ? "YES" : "NO";
+        matches.push({ rule, resolvedOutcome, context });
+      }
+    } else {
+      const mode = rule.conditionMode ?? "AND";
+      const conditionMet =
+        mode === "OR"
+          ? rule.conditions.some((c) => evaluateCondition(c, context))
+          : rule.conditions.every((c) => evaluateCondition(c, context));
+
+      if (conditionMet) {
+        matches.push({ rule, resolvedOutcome: rule.action.outcome, context });
+      }
     }
   }
 
@@ -72,21 +93,25 @@ function evaluateRules(
 }
 
 function evaluateCondition(condition: Condition, ctx: MarketContext): boolean {
-  const fieldValue = ctx[condition.field as keyof MarketContext] as number;
-  if (fieldValue === undefined) return false;
+  let fieldValue: number;
+  switch (condition.field) {
+    case "priceYes":    fieldValue = ctx.priceYes; break;
+    case "priceNo":     fieldValue = ctx.priceNo; break;
+    case "spread":      fieldValue = ctx.spread; break;
+    case "volume":      fieldValue = ctx.volume; break;
+    case "timeToClose": fieldValue = ctx.timeToClose; break;
+    case "aoi":         fieldValue = ctx.aoi; break;
+    default: return false;
+  }
 
   switch (condition.operator) {
-    case "<":
-      return typeof condition.value === "number" && fieldValue < condition.value;
-    case ">":
-      return typeof condition.value === "number" && fieldValue > condition.value;
-    case "==":
-      return typeof condition.value === "number" && Math.abs(fieldValue - condition.value) < 0.0001;
+    case "<":  return typeof condition.value === "number" && fieldValue < condition.value;
+    case ">":  return typeof condition.value === "number" && fieldValue > condition.value;
+    case "==": return typeof condition.value === "number" && Math.abs(fieldValue - condition.value) < 0.0001;
     case "between":
       if (!Array.isArray(condition.value)) return false;
       return fieldValue >= condition.value[0] && fieldValue <= condition.value[1];
-    default:
-      return false;
+    default: return false;
   }
 }
 
@@ -99,7 +124,7 @@ function matchesFilter(slug: string, filter: string): boolean {
 // --- AOI computation (inlined from lib/aoi.ts) ---
 
 function computeAOIN(outcomeBinaries: number[], n: number): number {
-  if (outcomeBinaries.length < n) return 0.5; // not enough data, assume neutral
+  if (outcomeBinaries.length < n) return 0.5;
   const slice = outcomeBinaries.slice(-n);
   return slice.reduce((s, v) => s + v, 0) / n;
 }
@@ -116,13 +141,10 @@ interface OpenPosition {
   ruleName: string;
 }
 
-function runBacktest(
-  request: WorkerRequest["payload"],
-): BacktestResult {
+function runBacktest(request: WorkerRequest["payload"]): BacktestResult {
   const { config, markets, snapshots, outcomes } = request;
   const { rules, startingBalance, aoiWindow } = config;
 
-  // Group snapshots by market_id for fast lookup
   const snapshotsByMarket = new Map<number, SerializedSnapshot[]>();
   for (const snap of snapshots) {
     const arr = snapshotsByMarket.get(snap.market_id) ?? [];
@@ -130,17 +152,11 @@ function runBacktest(
     snapshotsByMarket.set(snap.market_id, arr);
   }
 
-  // Build outcome binary sequence (sorted by start_time) for AOI
   const sortedOutcomes = [...outcomes].sort(
     (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
   );
   const outcomeBinaries: number[] = [];
-  const outcomeMap = new Map<number, SerializedOutcome>();
-  for (const o of sortedOutcomes) {
-    outcomeMap.set(o.id, o);
-  }
 
-  // Sort markets chronologically
   const sortedMarkets = [...markets]
     .filter((m) => m.outcome !== null)
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
@@ -153,28 +169,24 @@ function runBacktest(
 
   for (let mi = 0; mi < sortedMarkets.length; mi++) {
     const market = sortedMarkets[mi];
-    const marketStartMs = new Date(market.start_time).getTime();
     const marketEndMs = new Date(market.end_time).getTime();
-    const marketDurationMs = marketEndMs - marketStartMs;
     const marketSnaps = snapshotsByMarket.get(market.id) ?? [];
 
-    // Determine current AOI from preceding outcomes
     const currentAOI = computeAOIN(outcomeBinaries, aoiWindow);
-
-    // Evaluate rules at each price snapshot for this market
     const openPositions: OpenPosition[] = [];
 
     for (const snap of marketSnaps) {
-      const price = snap.mid_price_yes ?? snap.best_bid_yes ?? 0.5;
-      if (price <= 0 || price >= 1) continue;
+      const priceYes = snap.mid_price_yes ?? snap.best_bid_yes ?? 0.5;
+      if (priceYes <= 0 || priceYes >= 1) continue;
 
       const snapTimeMs = new Date(snap.recorded_at).getTime();
       const timeToClose = Math.max(0, (marketEndMs - snapTimeMs) / 1000);
-      const spread = (snap.best_ask_yes ?? price) - (snap.best_bid_yes ?? price);
+      const spread = (snap.best_ask_yes ?? priceYes) - (snap.best_bid_yes ?? priceYes);
 
       const ctx: MarketContext = {
         slug: market.slug,
-        price,
+        priceYes,
+        priceNo: 1 - priceYes,
         spread: Math.max(0, spread),
         volume: market.volume ?? 0,
         timeToClose,
@@ -183,25 +195,26 @@ function runBacktest(
 
       const matches = evaluateRules(rules, ctx, lastFired, snapTimeMs);
 
-      for (const { rule } of matches) {
-        // Only BUY actions for backtesting (SELL handled at settlement)
+      for (const { rule, resolvedOutcome } of matches) {
         if (rule.action.type !== "BUY") continue;
 
-        const quantity = Math.floor(rule.action.amount / price);
+        // Use the correct token price: YES tokens cost priceYes, NO tokens cost priceNo
+        const entryPrice = resolvedOutcome === "YES" ? priceYes : ctx.priceNo;
+        const quantity = Math.floor(rule.action.amount / entryPrice);
         if (quantity <= 0) continue;
 
-        const cost = buyCost(price, quantity);
+        const cost = buyCost(entryPrice, quantity);
         if (cost > balance) continue;
 
-        const fee = orderFee(price, quantity);
+        const fee = orderFee(entryPrice, quantity);
         balance -= cost;
 
         openPositions.push({
           marketId: market.id,
           slug: market.slug,
-          outcome: rule.action.outcome,
+          outcome: resolvedOutcome,
           quantity,
-          entryPrice: price,
+          entryPrice,
           ruleId: rule.id,
           ruleName: rule.name,
         });
@@ -210,8 +223,8 @@ function runBacktest(
           marketId: market.id,
           slug: market.slug,
           side: "BUY",
-          outcome: rule.action.outcome,
-          price,
+          outcome: resolvedOutcome,
+          price: entryPrice,
           quantity,
           fee,
           total: cost,
@@ -219,6 +232,7 @@ function runBacktest(
           ruleId: rule.id,
           ruleName: rule.name,
           timestamp: snap.recorded_at,
+          timeToClose,
         });
 
         lastFired.set(rule.id, snapTimeMs);
@@ -250,32 +264,20 @@ function runBacktest(
       });
     }
 
-    // Record outcome for future AOI computation
     const outcomeData = sortedOutcomes.find((o) => o.slug === market.slug);
-    if (outcomeData) {
-      outcomeBinaries.push(outcomeData.outcome_binary);
-    }
+    if (outcomeData) outcomeBinaries.push(outcomeData.outcome_binary);
 
     equityCurve.push({ time: market.end_time, equity: balance });
     marketsProcessed++;
 
-    // Post progress every 20 markets
     if (mi % 20 === 0) {
       const msg: WorkerResponse = { type: "progress", percent: Math.round((mi / sortedMarkets.length) * 100) };
       self.postMessage(msg);
     }
   }
 
-  // Compute stats
   const stats = computeStats(trades, startingBalance, equityCurve);
-
-  return {
-    config,
-    stats,
-    trades,
-    equityCurve,
-    marketsProcessed,
-  };
+  return { config, stats, trades, equityCurve, marketsProcessed };
 }
 
 function computeStats(
@@ -291,7 +293,6 @@ function computeStats(
   const totalWinPnl = wins.reduce((s, t) => s + t.pnl, 0);
   const totalLossPnl = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
 
-  // Max drawdown
   let peak = startingBalance;
   let maxDrawdown = 0;
   let maxDrawdownPct = 0;
@@ -304,21 +305,17 @@ function computeStats(
     }
   }
 
-  // Sharpe ratio (per-market returns, annualized roughly)
-  // Using per-settlement returns, risk-free rate = 0
   const returns: number[] = [];
   let prevEquity = startingBalance;
   for (const pt of equityCurve.slice(1)) {
-    if (prevEquity > 0) {
-      returns.push((pt.equity - prevEquity) / prevEquity);
-    }
+    if (prevEquity > 0) returns.push((pt.equity - prevEquity) / prevEquity);
     prevEquity = pt.equity;
   }
   const meanReturn = returns.length > 0 ? returns.reduce((s, r) => s + r, 0) / returns.length : 0;
-  const stdReturn = returns.length > 1
-    ? Math.sqrt(returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (returns.length - 1))
-    : 0;
-  // Annualize: 288 markets/day * 365 days
+  const stdReturn =
+    returns.length > 1
+      ? Math.sqrt(returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (returns.length - 1))
+      : 0;
   const annualizationFactor = Math.sqrt(288 * 365);
   const sharpeRatio = stdReturn > 0 ? (meanReturn / stdReturn) * annualizationFactor : 0;
 

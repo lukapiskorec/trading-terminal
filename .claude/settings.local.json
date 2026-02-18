@@ -25,7 +25,8 @@
       "Bash(powershell.exe -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(pnpm --filter web build:*)"
+      "Bash(pnpm --filter web build:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [
       "Read(./.env*)",
