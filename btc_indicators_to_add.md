@@ -1,88 +1,79 @@
-## 10) bbands (Bollinger Bands)
+# BTC Indicators — Candidates to Add
 
-### What it means
-
-Bollinger Bands measure **volatility** and **relative price position** versus a moving average.
-
-### Calculation
-
-Using a window length ( n ) (often 20):
-
-* Middle band:
-  [
-  MB = SMA_n(price)
-  ]
-
-* Standard deviation:
-  [
-  \sigma = STD_n(price)
-  ]
-
-* Upper band:
-  [
-  UB = MB + k\sigma
-  ]
-
-* Lower band:
-  [
-  LB = MB - k\sigma
-  ]
-
-Commonly: ( n=20 ), ( k=2 )
-
-### Signal logic (typical)
-
-* Price near **upper band** → “overbought” / breakout
-* Price near **lower band** → “oversold”
-* **Band expansion** → volatility increasing
-* **Band squeeze** → volatility compression
+Reference for indicators not yet implemented. Formulas are written in plain text to match `btc_indicators.md` style.
 
 ---
 
-## 11) flow_toxic (Order Flow Toxicity)
+## Indicator: Bollinger Bands
 
-### What it means
+**What it measures:** Volatility and relative price position versus a moving average.
 
-A measure of whether current trading flow is **informed / one-sided**, i.e. “toxic” to market makers.
+**Calculation:**
 
-This is not a single universal formula — it’s usually a proxy derived from:
+Using window length `n` (default `n = 20`, `k = 2`):
 
-* aggressive buy/sell imbalance
-* short-term adverse selection
-* VPIN-like metrics
-* signed volume pressure
+1. Middle band: `MB = SMA(price, n)`
+2. Standard deviation: `σ = STD(price, n)`
+3. Upper band: `UB = MB + k × σ`
+4. Lower band: `LB = MB - k × σ`
+5. `%B = (currentPrice - LB) / (UB - LB)`
 
-### Typical calculation approach
+**Signal logic:**
 
-A common proxy:
-[
-toxicity \approx \frac{|V_{buy} - V_{sell}|}{V_{buy}+V_{sell}}
-]
-computed over a short rolling window.
+- Price near **upper band** (`%B > 0.8`) → overbought / breakout
+- Price near **lower band** (`%B < 0.2`) → oversold
+- **Band expansion** → volatility increasing
+- **Band squeeze** → volatility compression
+
+**Parameters:** `n = 20`, `k = 2`
+
+---
+
+## Indicator: Order Flow Toxicity
+
+**What it measures:** Whether current trading flow is **informed / one-sided** ("toxic" to market makers). Not a single universal formula — it is a proxy derived from aggressive buy/sell imbalance, short-term adverse selection, VPIN-like metrics, and signed volume pressure.
+
+**Calculation:**
+
+Common proxy over a short rolling window:
+
+1. Sum aggressive buy volume `V_buy` and sell volume `V_sell` over the window
+2. `toxicity = |V_buy - V_sell| / (V_buy + V_sell)`
+3. Sign by dominant side: positive if buy-dominated, negative if sell-dominated
 
 More advanced versions incorporate:
 
-* price impact per unit volume
-* imbalance persistence
-* volatility scaling
+- Price impact per unit volume
+- Imbalance persistence
+- Volatility scaling
+
+**Output range:** -1 to +1 (magnitude = how one-sided; sign = which side)
+
+**Signal logic:**
+
+- `toxicity > 0.3` AND buy-dominated → informed buying pressure
+- `toxicity > 0.3` AND sell-dominated → informed selling pressure
+- `toxicity ≤ 0.3` → balanced / noise flow
 
 ---
 
-## 12) roc (Rate of Change)
+## Indicator: Rate of Change (ROC)
 
-### What it means
+**What it measures:** Simple momentum — how much price moved over a fixed lookback period.
 
-Simple momentum indicator: how much price moved over a period.
+**Calculation:**
 
-### Calculation
+1. `ROC = (P_t - P_{t-n}) / P_{t-n} × 100`
 
-[
-ROC_n = \frac{P_t - P_{t-n}}{P_{t-n}} \times 100
-]
+Where `P_t` is the current close and `P_{t-n}` is the close `n` periods ago.
 
-### Signal logic
+**Output:** Percentage (e.g., `+0.25` means price up 0.25% over the period)
 
-* Positive ROC → upward momentum
-* Negative ROC → downward momentum
+**Signal logic:**
+
+- Positive ROC → upward momentum
+- Negative ROC → downward momentum
+
+**Parameters:** `n = 10` (10-minute lookback on 1-min candles)
 
 ---
