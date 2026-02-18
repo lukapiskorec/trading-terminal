@@ -61,17 +61,41 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     }
     set({ loading: true, error: null });
 
-    const { data, error } = await supabase
-      .from("price_snapshots")
-      .select("*")
-      .in("market_id", marketIds)
-      .order("recorded_at", { ascending: true });
+    const PAGE_SIZE = 1000;
 
-    if (error) {
-      set({ loading: false, error: error.message });
+    // Get total count first so we can fetch all pages in parallel
+    const { count, error: countError } = await supabase
+      .from("price_snapshots")
+      .select("*", { count: "exact", head: true })
+      .in("market_id", marketIds);
+
+    if (countError) {
+      set({ loading: false, error: countError.message });
       return;
     }
-    set({ snapshots: (data ?? []) as PriceSnapshot[], loading: false });
+
+    const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+    const pageResults = await Promise.all(
+      Array.from({ length: totalPages }, (_, i) =>
+        supabase
+          .from("price_snapshots")
+          .select("*")
+          .in("market_id", marketIds)
+          .order("recorded_at", { ascending: true })
+          .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1)
+      )
+    );
+
+    for (const { error } of pageResults) {
+      if (error) {
+        set({ loading: false, error: error.message });
+        return;
+      }
+    }
+
+    const allSnapshots = pageResults.flatMap(({ data }) => (data ?? []) as PriceSnapshot[]);
+    set({ snapshots: allSnapshots, loading: false });
   },
 
   fetchOutcomes: async (opts) => {

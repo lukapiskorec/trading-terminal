@@ -46,7 +46,7 @@ export function MarketStats({ outcomes }: MarketStatsProps) {
         <CardTitle>Summary Statistics</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm lg:grid-cols-5">
           <Stat label="Total Markets" value={stats.total} />
           <Stat label="Up (YES)" value={`${stats.upCount} (${stats.upPct}%)`} className="text-magenta" />
           <Stat label="Down (NO)" value={`${stats.downCount} (${stats.downPct}%)`} className="text-accent" />

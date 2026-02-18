@@ -9,10 +9,10 @@ interface AOIChartProps {
 }
 
 const SERIES_CONFIG = [
-  { key: "aoi6" as const, label: "AOI-6", color: "#ff1ad9", width: 1 as const },
-  { key: "aoi12" as const, label: "AOI-12", color: "#b3129a", width: 2 as const },
-  { key: "aoi144" as const, label: "AOI-144", color: "#00f0ff", width: 2 as const },
-  { key: "aoi288" as const, label: "AOI-288", color: "#ffffff", width: 3 as const },
+  { key: "aoi6" as const, label: "AOI-6", color: "#ff1ad9", width: 1 as const, lineStyle: 2 as const, dashed: true },
+  { key: "aoi12" as const, label: "AOI-12", color: "#ff1ad9", width: 2 as const, lineStyle: 0 as const, dashed: false },
+  { key: "aoi144" as const, label: "AOI-144", color: "#00f0ff", width: 2 as const, lineStyle: 0 as const, dashed: false },
+  { key: "aoi288" as const, label: "AOI-288", color: "#ffffff", width: 3 as const, lineStyle: 0 as const, dashed: false },
 ] as const;
 
 export function AOIChart({ outcomes }: AOIChartProps) {
@@ -83,6 +83,7 @@ export function AOIChart({ outcomes }: AOIChartProps) {
       const s = chart.addSeries(LineSeries, {
         color: cfg.color,
         lineWidth: cfg.width,
+        lineStyle: cfg.lineStyle,
         priceLineVisible: false,
         crosshairMarkerVisible: true,
         lastValueVisible: false,
@@ -150,7 +151,13 @@ export function AOIChart({ outcomes }: AOIChartProps) {
                 onChange={() => toggleSeries(cfg.key)}
                 className="h-3 w-3 rounded border-neutral-600 bg-neutral-800 accent-magenta"
               />
-              <span className="inline-block h-0.5 w-3 rounded" style={{ backgroundColor: cfg.color }} />
+              {cfg.dashed ? (
+                <svg width="12" height="6" className="inline-block" style={{ verticalAlign: "middle" }}>
+                  <line x1="0" y1="3" x2="12" y2="3" stroke={cfg.color} strokeWidth="1.5" strokeDasharray="3 2" />
+                </svg>
+              ) : (
+                <span className="inline-block h-0.5 w-3 rounded" style={{ backgroundColor: cfg.color }} />
+              )}
               <span className={visibility[cfg.key] ? "" : "text-neutral-600"}>{cfg.label}</span>
             </label>
           ))}

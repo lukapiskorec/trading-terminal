@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import type { ShellContext } from "@/components/layout/Shell";
 import { useMarketStore } from "@/stores/marketStore";
@@ -13,6 +13,7 @@ export function Analytics() {
   const { date } = useOutletContext<ShellContext>();
   const { markets, snapshots, outcomes, loading, error, fetchMarketsByDate, fetchSnapshots, fetchOutcomes } =
     useMarketStore();
+  const [highlightedSlug, setHighlightedSlug] = useState<string | null>(null);
 
   // Fetch markets + outcomes when date changes
   useEffect(() => {
@@ -81,11 +82,15 @@ export function Analytics() {
 
       <MarketStats outcomes={dayOutcomes} />
 
-      <OutcomeTimeline outcomes={dayOutcomes} />
+      <OutcomeTimeline outcomes={dayOutcomes} onHoverSlug={setHighlightedSlug} />
 
       <AOIChart outcomes={dayOutcomes} />
 
-      <PriceOverlay markets={markets} snapshots={snapshots} />
+      <PriceOverlay
+        markets={markets}
+        snapshots={snapshots}
+        highlightedMarketId={highlightedSlug ? (markets.find((m) => m.slug === highlightedSlug)?.id ?? null) : null}
+      />
     </div>
   );
 }

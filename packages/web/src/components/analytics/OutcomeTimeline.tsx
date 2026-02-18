@@ -1,27 +1,39 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import type { MarketOutcome } from "@/types/market";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface OutcomeTimelineProps {
   outcomes: MarketOutcome[];
+  onHoverSlug?: (slug: string | null) => void;
 }
 
 // Trading session boundaries in UTC
 const SESSIONS = [
-  { label: "Asia", startHour: 1, endHour: 7, color: "rgba(255, 26, 217, 0.08)", border: "rgba(255, 26, 217, 0.25)" },
-  { label: "US", startHour: 14.5, endHour: 21, color: "rgba(0, 240, 255, 0.08)", border: "rgba(0, 240, 255, 0.25)" },
+  { label: "Asia", startHour: 1, endHour: 7 },
+  { label: "US", startHour: 14.5, endHour: 21 },
 ] as const;
 
 const SVG_H = 80;
-const BAR_W = 3;
 const BAR_H = 22;
 const MARGIN = { left: 40, right: 12, top: 8, bottom: 20 };
 
-export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
+export function OutcomeTimeline({ outcomes, onHoverSlug }: OutcomeTimelineProps) {
   const streaks = useMemo(() => computeStreaks(outcomes), [outcomes]);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [svgWidth, setSvgWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    setSvgWidth(container.clientWidth);
+    const observer = new ResizeObserver(([entry]) => {
+      setSvgWidth(entry.contentRect.width);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   if (outcomes.length === 0) {
     return (
@@ -32,32 +44,44 @@ export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
     );
   }
 
+  const plotW = svgWidth - MARGIN.left - MARGIN.right;
   const dayStart = new Date(outcomes[0].start_time).getTime();
   const dayEnd = new Date(outcomes[outcomes.length - 1].start_time).getTime();
   const range = dayEnd - dayStart || 1;
 
-  const xPct = (time: string) => ((new Date(time).getTime() - dayStart) / range) * 100;
+  // Time-based x (for sessions, streaks, ticks)
+  const xFromMs = (ms: number) => MARGIN.left + ((ms - dayStart) / range) * plotW;
+
+  // Index-based bar geometry (no gaps, guaranteed to fit)
+  const barW = plotW / outcomes.length;
+  const barY = (SVG_H - MARGIN.top - MARGIN.bottom) / 2 + MARGIN.top - BAR_H / 2;
 
   // Hour ticks (every 4 hours)
   const firstHour = new Date(outcomes[0].start_time);
   firstHour.setUTCMinutes(0, 0, 0);
-  const hourTicks: { label: string; pct: number }[] = [];
+  const hourTicks: { label: string; x: number }[] = [];
   for (let h = 0; h < 24; h += 4) {
     const t = new Date(firstHour);
     t.setUTCHours(h);
-    const pct = ((t.getTime() - dayStart) / range) * 100;
-    if (pct >= 0 && pct <= 100) {
-      hourTicks.push({ label: `${h.toString().padStart(2, "0")}:00`, pct });
+    const x = xFromMs(t.getTime());
+    if (x >= MARGIN.left && x <= svgWidth - MARGIN.right) {
+      hourTicks.push({ label: `${h.toString().padStart(2, "0")}:00`, x });
     }
   }
 
   const handleBarHover = (idx: number, e: React.MouseEvent<SVGRectElement>) => {
     setHoveredIdx(idx);
+    onHoverSlug?.(outcomes[idx].slug);
     const container = containerRef.current;
     if (container) {
       const rect = container.getBoundingClientRect();
       setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top - 8 });
     }
+  };
+
+  const handleBarLeave = () => {
+    setHoveredIdx(null);
+    onHoverSlug?.(null);
   };
 
   const hoveredOutcome = hoveredIdx !== null ? outcomes[hoveredIdx] : null;
@@ -69,113 +93,108 @@ export function OutcomeTimeline({ outcomes }: OutcomeTimelineProps) {
         <div className="flex gap-4 text-xs text-neutral-500">
           <span className="text-magenta">■ Up (YES)</span>
           <span className="text-accent">■ Down (NO)</span>
-          <span style={{ color: SESSIONS[0].border }}>■ Asia</span>
-          <span style={{ color: SESSIONS[1].border }}>■ US</span>
+          <span style={{ color: "rgba(255,255,255,1.0)" }}>□ Sessions</span>
         </div>
       </CardHeader>
       <CardContent>
         <div ref={containerRef} className="relative">
-          <svg width="100%" height={SVG_H} className="overflow-visible">
-            {/* Trading session backgrounds */}
-            {SESSIONS.map((session) => {
-              const sStart = new Date(firstHour);
-              sStart.setUTCHours(Math.floor(session.startHour), (session.startHour % 1) * 60);
-              const sEnd = new Date(firstHour);
-              sEnd.setUTCHours(Math.floor(session.endHour), (session.endHour % 1) * 60);
-              const x1 = Math.max(0, ((sStart.getTime() - dayStart) / range) * 100);
-              const x2 = Math.min(100, ((sEnd.getTime() - dayStart) / range) * 100);
-              if (x2 <= 0 || x1 >= 100) return null;
-              return (
-                <g key={session.label}>
-                  <rect
-                    x={`${x1}%`}
-                    width={`${x2 - x1}%`}
-                    y={MARGIN.top}
-                    height={SVG_H - MARGIN.top - MARGIN.bottom}
-                    fill={session.color}
-                    stroke={session.border}
-                    strokeWidth={0.5}
-                    transform={`translate(${MARGIN.left}, 0)`}
-                  />
-                  <text
-                    x={`${(x1 + x2) / 2}%`}
-                    y={MARGIN.top + 10}
-                    fill={session.border}
-                    fontSize={9}
-                    textAnchor="middle"
-                    transform={`translate(${MARGIN.left}, 0)`}
-                  >
-                    {session.label}
-                  </text>
-                </g>
-              );
-            })}
+          {svgWidth > 0 && (
+            <svg width={svgWidth} height={SVG_H} className="overflow-visible">
+              {/* Trading session outlines — no fill, white dashed border */}
+              {SESSIONS.map((session) => {
+                const sStart = new Date(firstHour);
+                sStart.setUTCHours(Math.floor(session.startHour), (session.startHour % 1) * 60);
+                const sEnd = new Date(firstHour);
+                sEnd.setUTCHours(Math.floor(session.endHour), (session.endHour % 1) * 60);
+                const x1 = Math.max(MARGIN.left, xFromMs(sStart.getTime()));
+                const x2 = Math.min(svgWidth - MARGIN.right, xFromMs(sEnd.getTime()));
+                if (x2 <= MARGIN.left || x1 >= svgWidth - MARGIN.right) return null;
+                return (
+                  <g key={session.label}>
+                    <rect
+                      x={x1}
+                      width={x2 - x1}
+                      y={MARGIN.top}
+                      height={SVG_H - MARGIN.top - MARGIN.bottom}
+                      fill="none"
+                      stroke="rgba(255,255,255,1.0)"
+                      strokeWidth={1}
+                      strokeDasharray="5 3"
+                    />
+                    <text
+                      x={(x1 + x2) / 2}
+                      y={MARGIN.top + 10}
+                      fill="rgba(255,255,255,1.0)"
+                      fontSize={9}
+                      textAnchor="middle"
+                    >
+                      {session.label}
+                    </text>
+                  </g>
+                );
+              })}
 
-            {/* Streak highlights */}
-            {streaks
-              .filter((s) => s.length >= 4)
-              .map((s, i) => {
-                const x1 = xPct(s.start);
-                const x2 = xPct(s.end);
+              {/* Streak highlights */}
+              {streaks
+                .filter((s) => s.length >= 4)
+                .map((s, i) => {
+                  const x1 = xFromMs(new Date(s.start).getTime());
+                  const x2 = xFromMs(new Date(s.end).getTime());
+                  return (
+                    <rect
+                      key={i}
+                      x={Math.max(MARGIN.left, x1)}
+                      width={Math.max(x2 - x1 + barW, 2)}
+                      y={MARGIN.top}
+                      height={SVG_H - MARGIN.top - MARGIN.bottom}
+                      fill={s.outcome === "Up" ? "rgba(255,26,217,0.25)" : "rgba(0,240,255,0.25)"}
+                      rx={2}
+                    />
+                  );
+                })}
+
+              {/* Outcome bars — index-based, no gaps, always fits */}
+              {outcomes.map((o, i) => {
+                const isUp = o.outcome === "Up";
                 return (
                   <rect
                     key={i}
-                    x={`${x1}%`}
-                    width={`${Math.max(x2 - x1, 0.5)}%`}
-                    y={MARGIN.top}
-                    height={SVG_H - MARGIN.top - MARGIN.bottom}
-                    fill={s.outcome === "Up" ? "rgba(255,26,217,0.1)" : "rgba(0,240,255,0.1)"}
-                    rx={2}
-                    transform={`translate(${MARGIN.left}, 0)`}
+                    x={MARGIN.left + i * barW}
+                    y={barY}
+                    width={barW}
+                    height={BAR_H}
+                    fill={isUp ? "#ff1ad9" : "#00f0ff"}
+                    opacity={hoveredIdx === i ? 1 : 0.7}
+                    onMouseEnter={(e) => handleBarHover(i, e)}
+                    onMouseLeave={handleBarLeave}
+                    style={{ cursor: "crosshair" }}
                   />
                 );
               })}
 
-            {/* Outcome bars */}
-            {outcomes.map((o, i) => {
-              const cx = xPct(o.start_time);
-              const isUp = o.outcome === "Up";
-              const barY = (SVG_H - MARGIN.top - MARGIN.bottom) / 2 + MARGIN.top - BAR_H / 2;
-              return (
-                <rect
-                  key={i}
-                  x={`${cx}%`}
-                  y={barY}
-                  width={BAR_W}
-                  height={BAR_H}
-                  rx={1}
-                  fill={isUp ? "#ff1ad9" : "#00f0ff"}
-                  opacity={hoveredIdx === i ? 1 : 0.7}
-                  transform={`translate(${MARGIN.left - BAR_W / 2}, 0)`}
-                  onMouseEnter={(e) => handleBarHover(i, e)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                  style={{ cursor: "crosshair" }}
-                />
-              );
-            })}
-
-            {/* Hour ticks */}
-            {hourTicks.map((tick) => (
-              <g key={tick.label} transform={`translate(${MARGIN.left}, 0)`}>
-                <line
-                  x1={`${tick.pct}%`}
-                  x2={`${tick.pct}%`}
-                  y1={SVG_H - MARGIN.bottom}
-                  y2={SVG_H - MARGIN.bottom + 4}
-                  stroke="#525252"
-                />
-                <text
-                  x={`${tick.pct}%`}
-                  y={SVG_H - 4}
-                  fill="#737373"
-                  fontSize={9}
-                  textAnchor="middle"
-                >
-                  {tick.label}
-                </text>
-              </g>
-            ))}
-          </svg>
+              {/* Hour ticks */}
+              {hourTicks.map((tick) => (
+                <g key={tick.label}>
+                  <line
+                    x1={tick.x}
+                    x2={tick.x}
+                    y1={SVG_H - MARGIN.bottom}
+                    y2={SVG_H - MARGIN.bottom + 4}
+                    stroke="#525252"
+                  />
+                  <text
+                    x={tick.x}
+                    y={SVG_H - 4}
+                    fill="#737373"
+                    fontSize={9}
+                    textAnchor="middle"
+                  >
+                    {tick.label}
+                  </text>
+                </g>
+              ))}
+            </svg>
+          )}
 
           {/* Hover tooltip */}
           {hoveredOutcome && (
