@@ -113,12 +113,13 @@ You should see startup logs from both the Binance connector and the PBT sync. Wa
 
 ---
 
-## Step 8 — Install pm2 (process manager)
+## Step 8 — Install pm2 and tsx globally
 
 pm2 keeps the script running after you disconnect and automatically restarts it if it crashes or the server reboots.
+tsx is installed globally so Node can resolve `--import tsx/esm` regardless of working directory.
 
 ```bash
-npm install -g pm2
+npm install -g pm2 tsx
 ```
 
 ---
@@ -129,11 +130,10 @@ npm install -g pm2
 # From the repo root
 cd ~/trading-terminal
 
-pm2 start \
+pm2 start src/collect-combined.ts \
   --name "collector" \
-  --interpreter "node" \
-  --node-args "--import tsx/esm" \
-  -- packages/scripts/src/collect-combined.ts
+  --interpreter tsx \
+  --cwd /home/ubuntu/trading-terminal/packages/scripts
 
 # Check it started correctly
 pm2 logs collector --lines 30
@@ -188,6 +188,8 @@ pm2 logs collector --lines 20   # verify clean restart
 ---
 
 ## Monitoring
+
+**Resource usage:** The collector process uses ~60 MB RAM (well within the 2 GB instance plan).
 
 The script logs a heartbeat every 60 seconds:
 
