@@ -25,7 +25,7 @@ export function Trade() {
   // Fetch snapshots when markets load
   useEffect(() => {
     if (markets.length > 0) {
-      fetchSnapshots(markets.map((m) => m.id));
+      fetchSnapshots(markets.map((m) => m.id), date);
     }
   }, [markets, fetchSnapshots]);
 

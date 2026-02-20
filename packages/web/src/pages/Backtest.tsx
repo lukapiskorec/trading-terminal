@@ -32,12 +32,12 @@ export function Backtest() {
   // Fetch data when date changes
   useEffect(() => {
     fetchMarketsByDate(date);
-    fetchOutcomes();
+    fetchOutcomes({ date });
   }, [date, fetchMarketsByDate, fetchOutcomes]);
 
   useEffect(() => {
     if (markets.length > 0) {
-      fetchSnapshots(markets.map((m) => m.id));
+      fetchSnapshots(markets.map((m) => m.id), date);
     }
   }, [markets, fetchSnapshots]);
 

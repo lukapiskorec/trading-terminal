@@ -18,13 +18,13 @@ export function Analytics() {
   // Fetch markets + outcomes when date changes
   useEffect(() => {
     fetchMarketsByDate(date);
-    fetchOutcomes();
+    fetchOutcomes({ date });
   }, [date, fetchMarketsByDate, fetchOutcomes]);
 
   // Fetch snapshots when markets load
   useEffect(() => {
     if (markets.length > 0) {
-      fetchSnapshots(markets.map((m) => m.id));
+      fetchSnapshots(markets.map((m) => m.id), date);
     }
   }, [markets, fetchSnapshots]);
 

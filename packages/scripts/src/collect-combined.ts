@@ -425,10 +425,20 @@ async function runPbtSync() {
     const existingIds = [...existingSlugToId.values()];
     const marketsWithPbtData = new Set<number>();
     if (existingIds.length > 0) {
-      const { data: pbtSnapRows } = await supabase
-        .from("price_snapshots").select("market_id")
-        .in("market_id", existingIds).eq("source", "polybacktest").limit(1000);
-      for (const row of pbtSnapRows ?? []) marketsWithPbtData.add(row.market_id);
+      // Check each market individually — a bulk query with limit(1000) only covers
+      // ~3 markets (300 rows each) before cutting off, causing silent re-syncs
+      const checks = await Promise.all(
+        existingIds.map((id) =>
+          supabase
+            .from("price_snapshots")
+            .select("market_id", { count: "exact", head: true })
+            .eq("market_id", id)
+            .eq("source", "polybacktest")
+        )
+      );
+      existingIds.forEach((id, idx) => {
+        if ((checks[idx].count ?? 0) > 0) marketsWithPbtData.add(id);
+      });
     }
 
     for (let i = 0; i < resolved.length; i++) {
@@ -504,7 +514,8 @@ async function runPbtSync() {
         }));
         for (let b = 0; b < snapRows.length; b += 500) {
           const { error: snapErr } = await supabase
-            .from("price_snapshots").insert(snapRows.slice(b, b + 500));
+            .from("price_snapshots")
+            .upsert(snapRows.slice(b, b + 500), { ignoreDuplicates: true });
           if (snapErr) log("pbt", `${label} WARN snapshot batch: ${snapErr.message}`);
         }
       }
