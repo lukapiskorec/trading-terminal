@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import type { ShellContext } from "@/components/layout/Shell";
+import { useShellContext } from "@/components/layout/Shell";
 import { useMarketStore } from "@/stores/marketStore";
+import { MarketStats } from "@/components/analytics/MarketStats";
 import { AOIChart } from "@/components/analytics/AOIChart";
 import { PriceOverlay } from "@/components/analytics/PriceOverlay";
 import { OutcomeTimeline } from "@/components/analytics/OutcomeTimeline";
-import { MarketStats } from "@/components/analytics/MarketStats";
 import { BtcIndicatorHeatmap } from "@/components/analytics/BtcIndicatorHeatmap";
+import { FormulaComposer } from "@/components/analytics/FormulaComposer";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { cn } from "@/lib/cn";
 
 export function Analytics() {
-  const { date } = useOutletContext<ShellContext>();
+  const { date, setDate } = useShellContext();
   const { markets, snapshots, outcomes, btcIndicators, loading, error, fetchMarketsByDate, fetchSnapshots, fetchOutcomes, fetchBtcIndicators } =
     useMarketStore();
   const [highlightedSlug, setHighlightedSlug] = useState<string | null>(null);
+  const [showUp, setShowUp] = useState(true);
+  const [showDown, setShowDown] = useState(true);
 
   // Fetch markets + outcomes + BTC indicators when date changes
   useEffect(() => {
@@ -71,20 +74,34 @@ export function Analytics() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Compact one-row header: market name · date picker · outcomes · export */}
+      <div className="flex items-center justify-center gap-3 border-b border-theme pb-3">
+        <span className="text-sm font-medium text-neutral-400 tracking-wide flex-shrink-0">
+          BTC 5m Up/Down
+        </span>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-7 border border-theme bg-panel px-2 text-xs text-neutral-200 outline-none focus:border-accent flex-shrink-0"
+        />
         {loading ? (
-          <div className="text-xs text-neutral-500 animate-pulse">Loading data...</div>
+          <span className="text-xs text-neutral-500 animate-pulse">Loading...</span>
         ) : (
-          <div className="text-xs text-neutral-500">{dayOutcomes.length} outcomes loaded</div>
+          <span className="text-xs text-neutral-500">{dayOutcomes.length} outcomes loaded</span>
         )}
-        <Button variant="ghost" size="sm" onClick={handleExportOutcomes} disabled={dayOutcomes.length === 0}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleExportOutcomes}
+          disabled={dayOutcomes.length === 0}
+          className={cn(loading || dayOutcomes.length === 0 ? "opacity-40" : "")}
+        >
           Export CSV
         </Button>
       </div>
 
       <MarketStats outcomes={dayOutcomes} />
-
-      <OutcomeTimeline outcomes={dayOutcomes} onHoverSlug={setHighlightedSlug} />
 
       <AOIChart outcomes={dayOutcomes} />
 
@@ -92,6 +109,17 @@ export function Analytics() {
         markets={markets}
         snapshots={snapshots}
         highlightedMarketId={highlightedSlug ? (markets.find((m) => m.slug === highlightedSlug)?.id ?? null) : null}
+        showUp={showUp}
+        showDown={showDown}
+        onToggleUp={() => setShowUp((v) => !v)}
+        onToggleDown={() => setShowDown((v) => !v)}
+      />
+
+      <OutcomeTimeline
+        outcomes={dayOutcomes}
+        onHoverSlug={setHighlightedSlug}
+        showUp={showUp}
+        showDown={showDown}
       />
 
       <BtcIndicatorHeatmap
@@ -101,6 +129,8 @@ export function Analytics() {
         loading={loading}
         date={date}
       />
+
+      <FormulaComposer />
     </div>
   );
 }

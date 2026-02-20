@@ -17,8 +17,8 @@ export function Header({ date, onDateChange }: HeaderProps) {
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-theme bg-surface px-4">
-      <div className="text-sm text-muted">
-        {formatDateLabel(date)}
+      <div className="text-sm font-medium text-neutral-400 tracking-wide">
+        BTC 5m Up/Down
       </div>
       <div className="flex items-center gap-3">
         {/* WS status indicator */}
@@ -33,22 +33,9 @@ export function Header({ date, onDateChange }: HeaderProps) {
           type="date"
           value={date}
           onChange={(e) => onDateChange(e.target.value)}
-          className="h-8 rounded-md border border-theme bg-panel px-2 text-sm text-neutral-200 outline-none focus:border-accent"
+          className="h-8 border border-theme bg-panel px-2 text-sm text-neutral-200 outline-none focus:border-accent"
         />
       </div>
     </header>
   );
-}
-
-function formatDateLabel(date: string): string {
-  try {
-    return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return date;
-  }
 }

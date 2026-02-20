@@ -189,7 +189,7 @@ pm2 logs collector --lines 20   # verify clean restart
 
 ## Monitoring
 
-**Resource usage:** The collector process uses ~60 MB RAM (well within the 2 GB instance plan).
+**Resource usage:** The collector process uses ~20 MB RAM (well within the 2 GB instance plan).
 
 The script logs a heartbeat every 60 seconds:
 

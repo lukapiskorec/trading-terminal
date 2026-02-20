@@ -9,7 +9,7 @@ export function Button({ className, variant = "default", size = "md", ...props }
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-md font-medium transition-colors",
+        "inline-flex items-center justify-center font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent",
         "disabled:pointer-events-none disabled:opacity-50",
         variant === "default" && "bg-accent text-neutral-950 hover:bg-accent/85",

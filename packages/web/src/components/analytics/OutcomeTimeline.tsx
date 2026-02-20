@@ -1,10 +1,12 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { MarketOutcome } from "@/types/market";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface OutcomeTimelineProps {
   outcomes: MarketOutcome[];
   onHoverSlug?: (slug: string | null) => void;
+  showUp: boolean;
+  showDown: boolean;
 }
 
 // Trading session boundaries in UTC
@@ -17,17 +19,16 @@ const SVG_H = 80;
 const BAR_H = 22;
 const MARGIN = { left: 40, right: 12, top: 8, bottom: 20 };
 
-export function OutcomeTimeline({ outcomes, onHoverSlug }: OutcomeTimelineProps) {
-  const streaks = useMemo(() => computeStreaks(outcomes), [outcomes]);
+export function OutcomeTimeline({ outcomes, onHoverSlug, showUp, showDown }: OutcomeTimelineProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [svgWidth, setSvgWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Always attach ResizeObserver — containerRef is always mounted now
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    setSvgWidth(container.clientWidth);
     const observer = new ResizeObserver(([entry]) => {
       setSvgWidth(entry.contentRect.width);
     });
@@ -35,39 +36,7 @@ export function OutcomeTimeline({ outcomes, onHoverSlug }: OutcomeTimelineProps)
     return () => observer.disconnect();
   }, []);
 
-  if (outcomes.length === 0) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>Outcome Timeline</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-neutral-500">No data</p></CardContent>
-      </Card>
-    );
-  }
-
-  const plotW = svgWidth - MARGIN.left - MARGIN.right;
-  const dayStart = new Date(outcomes[0].start_time).getTime();
-  const dayEnd = new Date(outcomes[outcomes.length - 1].start_time).getTime();
-  const range = dayEnd - dayStart || 1;
-
-  // Time-based x (for sessions, streaks, ticks)
-  const xFromMs = (ms: number) => MARGIN.left + ((ms - dayStart) / range) * plotW;
-
-  // Index-based bar geometry (no gaps, guaranteed to fit)
-  const barW = plotW / outcomes.length;
-  const barY = (SVG_H - MARGIN.top - MARGIN.bottom) / 2 + MARGIN.top - BAR_H / 2;
-
-  // Hour ticks (every 4 hours)
-  const firstHour = new Date(outcomes[0].start_time);
-  firstHour.setUTCMinutes(0, 0, 0);
-  const hourTicks: { label: string; x: number }[] = [];
-  for (let h = 0; h < 24; h += 4) {
-    const t = new Date(firstHour);
-    t.setUTCHours(h);
-    const x = xFromMs(t.getTime());
-    if (x >= MARGIN.left && x <= svgWidth - MARGIN.right) {
-      hourTicks.push({ label: `${h.toString().padStart(2, "0")}:00`, x });
-    }
-  }
+  const hoveredOutcome = hoveredIdx !== null ? outcomes[hoveredIdx] : null;
 
   const handleBarHover = (idx: number, e: React.MouseEvent<SVGRectElement>) => {
     setHoveredIdx(idx);
@@ -84,7 +53,131 @@ export function OutcomeTimeline({ outcomes, onHoverSlug }: OutcomeTimelineProps)
     onHoverSlug?.(null);
   };
 
-  const hoveredOutcome = hoveredIdx !== null ? outcomes[hoveredIdx] : null;
+  function renderChart() {
+    if (outcomes.length === 0 || svgWidth === 0) return null;
+
+    const plotW = svgWidth - MARGIN.left - MARGIN.right;
+    const dayStart = new Date(outcomes[0].start_time).getTime();
+    const dayEnd = new Date(outcomes[outcomes.length - 1].start_time).getTime();
+    const range = dayEnd - dayStart || 1;
+
+    const xFromMs = (ms: number) => MARGIN.left + ((ms - dayStart) / range) * plotW;
+    const barW = plotW / outcomes.length;
+    const barY = (SVG_H - MARGIN.top - MARGIN.bottom) / 2 + MARGIN.top - BAR_H / 2;
+
+    const firstHour = new Date(outcomes[0].start_time);
+    firstHour.setUTCMinutes(0, 0, 0);
+
+    const hourTicks: { label: string; x: number }[] = [];
+    for (let h = 0; h < 24; h += 4) {
+      const t = new Date(firstHour);
+      t.setUTCHours(h);
+      const x = xFromMs(t.getTime());
+      if (x >= MARGIN.left && x <= svgWidth - MARGIN.right) {
+        hourTicks.push({ label: `${h.toString().padStart(2, "0")}:00`, x });
+      }
+    }
+
+    const streaks = computeStreaks(outcomes);
+
+    return (
+      <svg width={svgWidth} height={SVG_H} className="overflow-visible">
+        {/* Trading session outlines */}
+        {SESSIONS.map((session) => {
+          const sStart = new Date(firstHour);
+          sStart.setUTCHours(Math.floor(session.startHour), (session.startHour % 1) * 60);
+          const sEnd = new Date(firstHour);
+          sEnd.setUTCHours(Math.floor(session.endHour), (session.endHour % 1) * 60);
+          const x1 = Math.max(MARGIN.left, xFromMs(sStart.getTime()));
+          const x2 = Math.min(svgWidth - MARGIN.right, xFromMs(sEnd.getTime()));
+          if (x2 <= MARGIN.left || x1 >= svgWidth - MARGIN.right) return null;
+          return (
+            <g key={session.label}>
+              <rect
+                x={x1}
+                width={x2 - x1}
+                y={MARGIN.top}
+                height={SVG_H - MARGIN.top - MARGIN.bottom}
+                fill="none"
+                stroke="rgba(255,255,255,1.0)"
+                strokeWidth={1}
+                strokeDasharray="5 3"
+              />
+              <text
+                x={(x1 + x2) / 2}
+                y={MARGIN.top + 10}
+                fill="rgba(255,255,255,1.0)"
+                fontSize={9}
+                textAnchor="middle"
+              >
+                {session.label}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Streak highlights — only for visible outcome types */}
+        {streaks
+          .filter((s) => s.length >= 4 && ((s.outcome === "Up" && showUp) || (s.outcome === "Down" && showDown)))
+          .map((s, i) => {
+            const x1 = xFromMs(new Date(s.start).getTime());
+            const x2 = xFromMs(new Date(s.end).getTime());
+            return (
+              <rect
+                key={i}
+                x={Math.max(MARGIN.left, x1)}
+                width={Math.max(x2 - x1 + barW, 2)}
+                y={MARGIN.top}
+                height={SVG_H - MARGIN.top - MARGIN.bottom}
+                fill={s.outcome === "Up" ? "rgba(255,26,217,0.25)" : "rgba(0,240,255,0.25)"}
+              />
+            );
+          })}
+
+        {/* Outcome bars — invisible gaps for filtered outcomes, scale unchanged */}
+        {outcomes.map((o, i) => {
+          const isUp = o.outcome === "Up";
+          const visible = (isUp && showUp) || (!isUp && showDown);
+          return (
+            <rect
+              key={i}
+              x={MARGIN.left + i * barW}
+              y={barY}
+              width={barW}
+              height={BAR_H}
+              fill={visible ? (isUp ? "#ff1ad9" : "#00f0ff") : "transparent"}
+              opacity={!visible ? 0 : hoveredIdx === i ? 1 : 0.7}
+              onMouseEnter={visible ? (e) => handleBarHover(i, e) : undefined}
+              onMouseLeave={visible ? handleBarLeave : undefined}
+              style={{ cursor: visible ? "crosshair" : "default" }}
+            />
+          );
+        })}
+
+        {/* Hour ticks */}
+        {hourTicks.map((tick) => (
+          <g key={tick.label}>
+            <line
+              x1={tick.x}
+              x2={tick.x}
+              y1={SVG_H - MARGIN.bottom}
+              y2={SVG_H - MARGIN.bottom + 4}
+              stroke="#525252"
+            />
+            <text
+              x={tick.x}
+              y={SVG_H - 4}
+              fill="#737373"
+              fontSize={9}
+              textAnchor="middle"
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+    );
+  }
 
   return (
     <Card>
@@ -98,105 +191,12 @@ export function OutcomeTimeline({ outcomes, onHoverSlug }: OutcomeTimelineProps)
       </CardHeader>
       <CardContent>
         <div ref={containerRef} className="relative">
-          {svgWidth > 0 && (
-            <svg width={svgWidth} height={SVG_H} className="overflow-visible">
-              {/* Trading session outlines — no fill, white dashed border */}
-              {SESSIONS.map((session) => {
-                const sStart = new Date(firstHour);
-                sStart.setUTCHours(Math.floor(session.startHour), (session.startHour % 1) * 60);
-                const sEnd = new Date(firstHour);
-                sEnd.setUTCHours(Math.floor(session.endHour), (session.endHour % 1) * 60);
-                const x1 = Math.max(MARGIN.left, xFromMs(sStart.getTime()));
-                const x2 = Math.min(svgWidth - MARGIN.right, xFromMs(sEnd.getTime()));
-                if (x2 <= MARGIN.left || x1 >= svgWidth - MARGIN.right) return null;
-                return (
-                  <g key={session.label}>
-                    <rect
-                      x={x1}
-                      width={x2 - x1}
-                      y={MARGIN.top}
-                      height={SVG_H - MARGIN.top - MARGIN.bottom}
-                      fill="none"
-                      stroke="rgba(255,255,255,1.0)"
-                      strokeWidth={1}
-                      strokeDasharray="5 3"
-                    />
-                    <text
-                      x={(x1 + x2) / 2}
-                      y={MARGIN.top + 10}
-                      fill="rgba(255,255,255,1.0)"
-                      fontSize={9}
-                      textAnchor="middle"
-                    >
-                      {session.label}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Streak highlights */}
-              {streaks
-                .filter((s) => s.length >= 4)
-                .map((s, i) => {
-                  const x1 = xFromMs(new Date(s.start).getTime());
-                  const x2 = xFromMs(new Date(s.end).getTime());
-                  return (
-                    <rect
-                      key={i}
-                      x={Math.max(MARGIN.left, x1)}
-                      width={Math.max(x2 - x1 + barW, 2)}
-                      y={MARGIN.top}
-                      height={SVG_H - MARGIN.top - MARGIN.bottom}
-                      fill={s.outcome === "Up" ? "rgba(255,26,217,0.25)" : "rgba(0,240,255,0.25)"}
-                      rx={2}
-                    />
-                  );
-                })}
-
-              {/* Outcome bars — index-based, no gaps, always fits */}
-              {outcomes.map((o, i) => {
-                const isUp = o.outcome === "Up";
-                return (
-                  <rect
-                    key={i}
-                    x={MARGIN.left + i * barW}
-                    y={barY}
-                    width={barW}
-                    height={BAR_H}
-                    fill={isUp ? "#ff1ad9" : "#00f0ff"}
-                    opacity={hoveredIdx === i ? 1 : 0.7}
-                    onMouseEnter={(e) => handleBarHover(i, e)}
-                    onMouseLeave={handleBarLeave}
-                    style={{ cursor: "crosshair" }}
-                  />
-                );
-              })}
-
-              {/* Hour ticks */}
-              {hourTicks.map((tick) => (
-                <g key={tick.label}>
-                  <line
-                    x1={tick.x}
-                    x2={tick.x}
-                    y1={SVG_H - MARGIN.bottom}
-                    y2={SVG_H - MARGIN.bottom + 4}
-                    stroke="#525252"
-                  />
-                  <text
-                    x={tick.x}
-                    y={SVG_H - 4}
-                    fill="#737373"
-                    fontSize={9}
-                    textAnchor="middle"
-                  >
-                    {tick.label}
-                  </text>
-                </g>
-              ))}
-            </svg>
+          {outcomes.length === 0 ? (
+            <p className="text-sm text-neutral-500">No data</p>
+          ) : (
+            renderChart()
           )}
 
-          {/* Hover tooltip */}
           {hoveredOutcome && (
             <div
               className="absolute z-10 pointer-events-none rounded bg-panel border border-theme px-2.5 py-1.5 text-xs shadow-lg"

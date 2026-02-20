@@ -1,32 +1,38 @@
 import { useMemo } from "react";
 import type { MarketOutcome } from "@/types/market";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface MarketStatsProps {
   outcomes: MarketOutcome[];
 }
 
-interface Stats {
-  total: number;
-  upCount: number;
-  downCount: number;
-  upPct: string;
-  downPct: string;
-  longestUpStreak: number;
-  longestDownStreak: number;
-  chiSquaredP: string;
-  autocorrelation: string;
-  sessions: { label: string; upRate: string; count: number }[];
-}
-
 // Session hour ranges in UTC
 const SESSION_DEFS = [
-  { label: "Asia (01–07 UTC)", startH: 1, endH: 7 },
-  { label: "EU (07–14 UTC)", startH: 7, endH: 14 },
-  { label: "US Open (14–17 UTC)", startH: 14, endH: 17 },
-  { label: "US Close (17–21 UTC)", startH: 17, endH: 21 },
-  { label: "Overnight (21–01 UTC)", startH: 21, endH: 25 }, // 25 wraps to 1
+  { label: "Asia 01-07", startH: 1, endH: 7 },
+  { label: "EU 07-14", startH: 7, endH: 14 },
+  { label: "US 14-17", startH: 14, endH: 17 },
+  { label: "US 17-21", startH: 17, endH: 21 },
+  { label: "Night 21-01", startH: 21, endH: 25 },
 ] as const;
+
+function StatBox({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) {
+  return (
+    <div className="border border-neutral-800 px-1.5 py-0.5 flex-shrink-0">
+      <div className="text-neutral-600 leading-none mb-0.5 uppercase tracking-wide" style={{ fontSize: 9 }}>
+        {label}
+      </div>
+      <div className={`font-mono text-xs leading-none ${color ?? "text-neutral-200"}`}>{value}</div>
+    </div>
+  );
+}
 
 export function MarketStats({ outcomes }: MarketStatsProps) {
   const stats = useMemo(() => computeStats(outcomes), [outcomes]);
@@ -34,52 +40,34 @@ export function MarketStats({ outcomes }: MarketStatsProps) {
   if (!stats) {
     return (
       <Card>
-        <CardHeader><CardTitle>Summary Statistics</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-neutral-500">No data</p></CardContent>
+        <CardContent className="py-2">
+          <p className="text-xs text-neutral-500">No data</p>
+        </CardContent>
       </Card>
     );
   }
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Summary Statistics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm lg:grid-cols-5">
-          <Stat label="Total Markets" value={stats.total} />
-          <Stat label="Up (YES)" value={`${stats.upCount} (${stats.upPct}%)`} className="text-magenta" />
-          <Stat label="Down (NO)" value={`${stats.downCount} (${stats.downPct}%)`} className="text-accent" />
-          <Stat label="Longest Up Streak" value={stats.longestUpStreak} />
-          <Stat label="Longest Down Streak" value={stats.longestDownStreak} />
-          <Stat label="Chi-squared p-value" value={stats.chiSquaredP} />
-          <Stat label="Autocorrelation (lag-1)" value={stats.autocorrelation} />
-        </div>
-
-        <h4 className="mt-4 mb-2 text-xs font-medium text-neutral-400 uppercase tracking-wide">Up Rate by Session</h4>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm lg:grid-cols-3">
-          {stats.sessions.map((s) => (
-            <div key={s.label} className="flex justify-between">
-              <span className="text-neutral-400">{s.label}</span>
-              <span className="font-mono">{s.upRate}% <span className="text-neutral-600">({s.count})</span></span>
-            </div>
-          ))}
+      <CardContent className="py-2">
+        <div className="flex flex-wrap justify-center gap-1">
+            <StatBox label="Markets" value={String(stats.total)} />
+            <StatBox label="Up YES" value={`${stats.upCount} (${stats.upPct}%)`} color="text-magenta" />
+            <StatBox label="Dn NO" value={`${stats.downCount} (${stats.downPct}%)`} color="text-accent" />
+            <StatBox label="Streak ↑" value={String(stats.longestUpStreak)} />
+            <StatBox label="Streak ↓" value={String(stats.longestDownStreak)} />
+            <StatBox label="χ² p-val" value={stats.chiSquaredP} />
+            <StatBox label="AC lag-1" value={stats.autocorrelation} />
+            {stats.sessions.map((s) => (
+              <StatBox key={s.label} label={s.label} value={`${s.upRate}% (${s.count})`} />
+            ))}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function Stat({ label, value, className }: { label: string; value: string | number; className?: string }) {
-  return (
-    <div>
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`font-mono text-base ${className ?? ""}`}>{value}</div>
-    </div>
-  );
-}
-
-function computeStats(outcomes: MarketOutcome[]): Stats | null {
+function computeStats(outcomes: MarketOutcome[]) {
   if (outcomes.length === 0) return null;
 
   const bins = outcomes.map((o) => o.outcome_binary);
@@ -87,35 +75,28 @@ function computeStats(outcomes: MarketOutcome[]): Stats | null {
   const upCount = bins.filter((b) => b === 1).length;
   const downCount = n - upCount;
 
-  // Longest streaks
   let longestUp = 0, longestDown = 0, curUp = 0, curDown = 0;
   for (const b of bins) {
     if (b === 1) { curUp++; curDown = 0; longestUp = Math.max(longestUp, curUp); }
     else { curDown++; curUp = 0; longestDown = Math.max(longestDown, curDown); }
   }
 
-  // Chi-squared test: observed vs expected 50/50
   const expected = n / 2;
   const chiSq = ((upCount - expected) ** 2) / expected + ((downCount - expected) ** 2) / expected;
-  // Approximate p-value for 1 DOF chi-squared
   const pValue = 1 - chiSquaredCDF(chiSq, 1);
 
-  // Autocorrelation at lag 1
-  const mean = upCount / n;
+  const avg = upCount / n;
   let num = 0, den = 0;
   for (let i = 0; i < n; i++) {
-    den += (bins[i] - mean) ** 2;
-    if (i < n - 1) num += (bins[i] - mean) * (bins[i + 1] - mean);
+    den += (bins[i] - avg) ** 2;
+    if (i < n - 1) num += (bins[i] - avg) * (bins[i + 1] - avg);
   }
   const autocorr = den === 0 ? 0 : num / den;
 
-  // Session breakdown
   const sessions = SESSION_DEFS.map((def) => {
     const inSession = outcomes.filter((o) => {
       const h = new Date(o.start_time).getUTCHours();
-      if (def.endH > 24) {
-        return h >= def.startH || h < def.endH - 24;
-      }
+      if (def.endH > 24) return h >= def.startH || h < def.endH - 24;
       return h >= def.startH && h < def.endH;
     });
     const ups = inSession.filter((o) => o.outcome === "Up").length;
@@ -140,13 +121,10 @@ function computeStats(outcomes: MarketOutcome[]): Stats | null {
   };
 }
 
-/** Approximate chi-squared CDF for degrees of freedom = 1 */
 function chiSquaredCDF(x: number, _k: number): number {
-  // For k=1: CDF = erf(sqrt(x/2))
   return erf(Math.sqrt(x / 2));
 }
 
-/** Approximation of the error function */
 function erf(x: number): number {
   const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
   const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;

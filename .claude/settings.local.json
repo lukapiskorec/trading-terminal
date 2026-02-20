@@ -27,7 +27,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(pnpm --filter web build:*)",
       "mcp__ide__getDiagnostics",
-      "WebFetch(domain:contabo.com)"
+      "WebFetch(domain:contabo.com)",
+      "Bash(bun run:*)"
     ],
     "deny": [
       "Read(./.env*)",
