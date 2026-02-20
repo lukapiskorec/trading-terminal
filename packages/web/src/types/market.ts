@@ -37,6 +37,28 @@ export interface MarketOutcome {
   volume: number | null;
 }
 
+/** Row in the `btc_indicator_snapshots` Supabase table */
+export interface BtcIndicatorSnapshot {
+  recorded_at: string;
+  btc_mid: number | null;
+  obi: number | null;
+  cvd_5m: number | null;
+  rsi: number | null;
+  macd_histogram: number | null;
+  ema5: number | null;
+  ema20: number | null;
+  vwap: number | null;
+  ha_streak: number | null;
+  poc: number | null;
+  bid_walls: number | null;
+  ask_walls: number | null;
+  bbands_pct_b: number | null;
+  flow_toxicity: number | null;
+  roc: number | null;
+  bias_score: number | null;
+  bias_signal: string | null;
+}
+
 /** Live market state (from WebSocket + REST, held in Zustand) */
 export interface LiveMarket {
   slug: string;

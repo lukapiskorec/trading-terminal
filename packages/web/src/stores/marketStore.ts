@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
-import type { Market, PriceSnapshot, MarketOutcome, LiveMarket } from "@/types/market";
+import type { Market, PriceSnapshot, MarketOutcome, LiveMarket, BtcIndicatorSnapshot } from "@/types/market";
 
 interface MarketState {
   /** Historical markets loaded from Supabase */
@@ -11,6 +11,8 @@ interface MarketState {
   outcomes: MarketOutcome[];
   /** Currently active live market (from WebSocket) */
   liveMarket: LiveMarket | null;
+  /** BTC indicator snapshots for the selected date */
+  btcIndicators: BtcIndicatorSnapshot[];
 
   loading: boolean;
   error: string | null;
@@ -21,6 +23,8 @@ interface MarketState {
   fetchSnapshots: (marketIds: number[], date: string) => Promise<void>;
   /** Fetch resolved outcomes for AOI calculations, scoped to a single UTC date */
   fetchOutcomes: (opts?: { limit?: number; date?: string }) => Promise<void>;
+  /** Fetch BTC indicator snapshots for a single UTC date */
+  fetchBtcIndicators: (date: string) => Promise<void>;
   /** Update live market state (called from WebSocket handler) */
   setLiveMarket: (market: LiveMarket | null) => void;
   /** Update a single live price field */
@@ -32,6 +36,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   snapshots: [],
   outcomes: [],
   liveMarket: null,
+  btcIndicators: [],
   loading: false,
   error: null,
 
@@ -139,6 +144,57 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       return;
     }
     set({ outcomes: (data ?? []) as MarketOutcome[], loading: false });
+  },
+
+  fetchBtcIndicators: async (date: string) => {
+    set({ loading: true, error: null });
+
+    const PAGE_SIZE = 1000;
+    const BATCH_SIZE = 10;
+    const dayStart = `${date}T00:00:00Z`;
+    const dayEnd = `${date}T23:59:59Z`;
+
+    const { data: firstPage, count, error: firstError } = await supabase
+      .from("btc_indicator_snapshots")
+      .select("*", { count: "exact" })
+      .gte("recorded_at", dayStart)
+      .lte("recorded_at", dayEnd)
+      .order("recorded_at", { ascending: true })
+      .range(0, PAGE_SIZE - 1);
+
+    if (firstError) {
+      set({ loading: false, error: firstError.message });
+      return;
+    }
+
+    const allRows: BtcIndicatorSnapshot[] = [...((firstPage ?? []) as BtcIndicatorSnapshot[])];
+    const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+    for (let batchStart = 1; batchStart < totalPages; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalPages);
+      const batchResults = await Promise.all(
+        Array.from({ length: batchEnd - batchStart }, (_, j) => {
+          const page = batchStart + j;
+          return supabase
+            .from("btc_indicator_snapshots")
+            .select("*")
+            .gte("recorded_at", dayStart)
+            .lte("recorded_at", dayEnd)
+            .order("recorded_at", { ascending: true })
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        })
+      );
+
+      for (const { data, error } of batchResults) {
+        if (error) {
+          set({ loading: false, error: error.message });
+          return;
+        }
+        allRows.push(...((data ?? []) as BtcIndicatorSnapshot[]));
+      }
+    }
+
+    set({ btcIndicators: allRows, loading: false });
   },
 
   setLiveMarket: (market) => set({ liveMarket: market }),

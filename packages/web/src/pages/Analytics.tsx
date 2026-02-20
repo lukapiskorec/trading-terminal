@@ -6,20 +6,22 @@ import { AOIChart } from "@/components/analytics/AOIChart";
 import { PriceOverlay } from "@/components/analytics/PriceOverlay";
 import { OutcomeTimeline } from "@/components/analytics/OutcomeTimeline";
 import { MarketStats } from "@/components/analytics/MarketStats";
+import { BtcIndicatorHeatmap } from "@/components/analytics/BtcIndicatorHeatmap";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
 
 export function Analytics() {
   const { date } = useOutletContext<ShellContext>();
-  const { markets, snapshots, outcomes, loading, error, fetchMarketsByDate, fetchSnapshots, fetchOutcomes } =
+  const { markets, snapshots, outcomes, btcIndicators, loading, error, fetchMarketsByDate, fetchSnapshots, fetchOutcomes, fetchBtcIndicators } =
     useMarketStore();
   const [highlightedSlug, setHighlightedSlug] = useState<string | null>(null);
 
-  // Fetch markets + outcomes when date changes
+  // Fetch markets + outcomes + BTC indicators when date changes
   useEffect(() => {
     fetchMarketsByDate(date);
     fetchOutcomes({ date });
-  }, [date, fetchMarketsByDate, fetchOutcomes]);
+    fetchBtcIndicators(date);
+  }, [date, fetchMarketsByDate, fetchOutcomes, fetchBtcIndicators]);
 
   // Fetch snapshots when markets load
   useEffect(() => {
@@ -90,6 +92,14 @@ export function Analytics() {
         markets={markets}
         snapshots={snapshots}
         highlightedMarketId={highlightedSlug ? (markets.find((m) => m.slug === highlightedSlug)?.id ?? null) : null}
+      />
+
+      <BtcIndicatorHeatmap
+        outcomes={dayOutcomes}
+        markets={markets}
+        btcIndicators={btcIndicators}
+        loading={loading}
+        date={date}
       />
     </div>
   );
