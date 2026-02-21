@@ -31,7 +31,7 @@ export function TopNav() {
               cn(
                 "flex items-center gap-1.5 px-2.5 py-1 text-xs transition-colors",
                 isActive
-                  ? "bg-panel text-accent font-medium"
+                  ? "bg-magenta text-black font-medium"
                   : "text-muted hover:bg-panel/50 hover:text-neutral-200",
               )
             }

@@ -163,7 +163,39 @@ export function disconnect() {
   reconnectAttempts = 0;
 }
 
+/**
+ * Force a fresh WS connection. Detaches old socket handlers to prevent
+ * interference, then immediately opens a new connection.
+ * Used for market transitions where Polymarket's WS doesn't respond
+ * to mid-session resubscriptions.
+ */
+export function reconnect() {
+  // Detach old socket handlers to prevent onclose from interfering
+  const oldSocket = socket;
+  socket = null;
+  if (oldSocket) {
+    oldSocket.onclose = null;
+    oldSocket.onerror = null;
+    oldSocket.onmessage = null;
+    oldSocket.close();
+  }
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  stopPing();
+  stopFlush();
+  subscribedIds = [];
+  reconnectAttempts = 0;
+  // Immediately open fresh connection
+  connect();
+}
+
 export function subscribe(assetIds: string[]) {
+  // Unsubscribe from previous tokens first
+  if (socket && socket.readyState === WebSocket.OPEN && subscribedIds.length > 0) {
+    socket.send(JSON.stringify({ assets_ids: subscribedIds, type: "unsubscribe" }));
+  }
+  // Clear stale price buffers
+  priceBuffers.clear();
+
   subscribedIds = assetIds;
   if (socket && socket.readyState === WebSocket.OPEN) {
     sendSubscribe(assetIds);
@@ -228,6 +260,8 @@ function handleRawMessage(data: any) {
   }
 
   // 3. Last trade price: {event_type: "last_trade_price", asset_id, price, ...}
+  //    NOTE: size is NOT accumulated here — price_changes already includes
+  //    trade sizes. Counting both would double-count every trade.
   if (data.event_type === "last_trade_price") {
     const id = data.asset_id;
     if (id) {
@@ -235,8 +269,6 @@ function handleRawMessage(data: any) {
       if (!isNaN(price)) {
         const buf = getBuffer(id);
         buf.prices.push(price);
-        const size = parseFloat(data.size);
-        if (!isNaN(size)) buf.totalSize += size;
       }
     }
     return;

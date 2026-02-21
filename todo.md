@@ -18,15 +18,15 @@
 
 
 ## Phase 5: Trading Simulator
-- [ ] Market settlement is manual ("Settle All Resolved" button) — auto-settlement needs WebSocket integration (Phase 8)
-- [ ] Trading uses last historical snapshot price as fill price — works for simulation, but live trading needs WebSocket prices
-- [ ] No SELL UI in the order panel — positions auto-settle on resolution or user can reset; add explicit sell button if needed
+- [x] Market settlement is manual ("Settle All Resolved" button) — bot engine auto-settles on market transition using WS price heuristic
+- [x] Trading uses last historical snapshot price as fill price — Trade page now uses live WebSocket prices exclusively
+- [x] No SELL UI in the order panel — bots auto-settle positions on market resolution; Trade page is now bot-based
 - [ ] Virtual trades stored in localStorage only — migrate to Supabase if cloud persistence is needed
 
 
 ## Phase 6: Trading Rules
-- [ ] Wire rules engine into WebSocket live price feed for automatic triggering (Phase 8)
-- [ ] Rules can be tested via backtester (Phase 7) against historical data
+- [x] Wire rules engine into WebSocket live price feed for automatic triggering — bot engine on Trade page evaluates rules on each WS price tick
+- [x] Rules can be tested via backtester (Phase 7) against historical data
 
 
 ## Phase 7: Backtesting
@@ -37,7 +37,7 @@
 
 ## Phase 8: Live Data Collection & Polish
 - [ ] `collect-live.ts` requires `ws` npm package and `SUPABASE_URL`/`SUPABASE_SECRET_KEY` env vars — run with `pnpm --filter scripts collect`
-- [ ] Browser WS manager (`lib/ws.ts`) does not yet auto-execute rules on price ticks — needs wiring `evaluateRules()` + `tradeStore.buy()` in a listener (currently display-only)
+- [x] Browser WS manager (`lib/ws.ts`) does not yet auto-execute rules on price ticks — bot engine on Trade page wires `evaluateRules()` into WS price listener
 - [ ] Dashboard WS connect/disconnect is manual unless "Auto-connect on Dashboard load" is toggled in Settings
 - [ ] `collect-live.ts` market slug calculation assumes BTC 5-min markets start at exact multiples of 300s from epoch — if Polymarket changes timing, slug generation breaks
 - [ ] No skeleton shimmer animations — loading states use simple text + `animate-pulse`

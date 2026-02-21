@@ -28,7 +28,9 @@
       "Bash(pnpm --filter web build:*)",
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:contabo.com)",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(git status:*)",
+      "Bash(ls:*)"
     ],
     "deny": [
       "Read(./.env*)",

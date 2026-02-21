@@ -12,13 +12,13 @@ const INDICATOR_LABELS: { key: IndicatorKey; label: string; fullName: string; de
   { key: "cvd", label: "CVD", fullName: "Cumulative Volume Delta", desc: "Net aggressive buying vs selling pressure over a rolling 5-min window." },
   { key: "rsi", label: "RSI", fullName: "Relative Strength Index", desc: "Momentum — whether recent price moves have been predominantly up or down." },
   { key: "macd", label: "MACD", fullName: "Moving Average Convergence Divergence", desc: "Trend momentum via the relationship between fast and slow exponential moving averages." },
-  { key: "emaCross", label: "EMA Cross", fullName: "EMA Crossover (5/20)", desc: "Short-term trend direction — whether fast momentum is above or below the slower trend." },
+  { key: "emaCross", label: "EMA X", fullName: "EMA Crossover (5/20)", desc: "Short-term trend direction — whether fast momentum is above or below the slower trend." },
   { key: "vwap", label: "VWAP", fullName: "Volume-Weighted Average Price", desc: "The average price weighted by volume — institutional benchmark for fair value." },
-  { key: "heikinAshi", label: "Heikin Ashi", fullName: "Heikin Ashi Streak", desc: "Trend persistence using smoothed candles — how many consecutive candles are the same color." },
+  { key: "heikinAshi", label: "HA", fullName: "Heikin Ashi Streak", desc: "Trend persistence using smoothed candles — how many consecutive candles are the same color." },
   { key: "poc", label: "POC", fullName: "Point of Control (Volume Profile)", desc: "The price level with the highest traded volume — where the market spent most of its energy." },
   { key: "walls", label: "Walls", fullName: "Bid/Ask Walls", desc: "Whether there are large resting orders (walls) on the bid or ask side of the orderbook." },
-  { key: "bbands", label: "BBands %B", fullName: "Bollinger Bands (%B)", desc: "Price position relative to its volatility envelope — is price stretched to an extreme or near the mean?" },
-  { key: "flowToxicity", label: "Flow Toxic.", fullName: "Order Flow Toxicity", desc: "Whether recent order flow is one-sided and informed — indicating toxic flow to market makers." },
+  { key: "bbands", label: "BB %B", fullName: "Bollinger Bands (%B)", desc: "Price position relative to its volatility envelope — is price stretched to an extreme or near the mean?" },
+  { key: "flowToxicity", label: "Toxic.", fullName: "Order Flow Toxicity", desc: "Whether recent order flow is one-sided and informed — indicating toxic flow to market makers." },
   { key: "roc", label: "ROC", fullName: "Rate of Change", desc: "Simple price momentum — percentage change over a 10-minute lookback period." },
 ];
 
@@ -30,6 +30,23 @@ function signalClasses(signal: Signal): string {
   }
 }
 
+/** Colored fill for compact indicator boxes */
+function signalFill(signal: Signal): string {
+  switch (signal) {
+    case "BULLISH": return "bg-magenta/20 border-magenta/30";
+    case "BEARISH": return "bg-accent/20 border-accent/30";
+    case "NEUTRAL": return "bg-neutral-800/60 border-theme";
+  }
+}
+
+function signalTextColor(signal: Signal): string {
+  switch (signal) {
+    case "BULLISH": return "text-magenta";
+    case "BEARISH": return "text-accent";
+    case "NEUTRAL": return "text-neutral-400";
+  }
+}
+
 function formatValue(result: IndicatorResult): string {
   if (typeof result.value === "string") return result.value;
   const v = result.value;
@@ -38,7 +55,11 @@ function formatValue(result: IndicatorResult): string {
   return v.toFixed(2);
 }
 
-export function IndicatorPanel() {
+interface IndicatorPanelProps {
+  compact?: boolean;
+}
+
+export function IndicatorPanel({ compact }: IndicatorPanelProps) {
   const { status, mid, indicators, bias, connect, disconnect } = useIndicatorStore();
 
   // Cleanup on unmount
@@ -53,6 +74,90 @@ export function IndicatorPanel() {
       connect();
     }
   };
+
+  if (compact) {
+    return (
+      <Card>
+        <CardContent className="py-2 px-3">
+          {/* Compact header row */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-neutral-400">BTC Indicators</span>
+              {mid !== null && (
+                <span className="text-xs font-mono text-neutral-300">
+                  ${mid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={handleToggle} className="h-6 text-[10px] px-2">
+              <span className={cn(
+                "inline-block h-1.5 w-1.5 rounded-full mr-1.5",
+                status === "connected" ? "bg-magenta" : status === "connecting" ? "bg-white animate-pulse" : "bg-neutral-600",
+              )} />
+              {status === "connected" ? "Off" : status === "connecting" ? "..." : "On"}
+            </Button>
+          </div>
+
+          {/* 12×1 indicator row — colored fill by sentiment */}
+          {(status !== "disconnected" || bias) && (
+            <>
+              <div className="grid grid-cols-4 gap-1 sm:grid-cols-6 lg:grid-cols-12">
+                {INDICATOR_LABELS.map(({ key, label, fullName, desc }) => {
+                  const result = indicators[key];
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "group relative rounded border px-1.5 py-1 text-center transition-colors",
+                        result ? signalFill(result.signal) : "bg-neutral-800/40 border-theme",
+                      )}
+                    >
+                      <div className={cn("text-[9px] truncate", result ? signalTextColor(result.signal) : "text-neutral-500")}>{label}</div>
+                      {result ? (
+                        <div className={cn("font-mono text-[10px] truncate", signalTextColor(result.signal))}>{formatValue(result)}</div>
+                      ) : (
+                        <div className="text-[10px] text-neutral-600">—</div>
+                      )}
+                      {/* Hover tooltip */}
+                      <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded border border-theme bg-panel shadow-lg shadow-black/50 p-2 text-[10px] opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150">
+                        <div className="font-semibold text-neutral-200 mb-0.5">{fullName}</div>
+                        <div className="text-neutral-400 leading-relaxed">{desc}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Compact composite bias bar */}
+              {bias && (
+                <div className="mt-1.5 rounded border border-theme bg-surface px-3 py-1.5">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-neutral-500 flex-shrink-0">Composite Bias</span>
+                    <div className="flex-1 relative h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                      <div className="absolute left-1/2 top-0 h-full w-px bg-neutral-600" />
+                      <div
+                        className={cn(
+                          "absolute top-0 h-full rounded-full transition-all duration-300",
+                          bias.score >= 0 ? "bg-magenta" : "bg-accent",
+                        )}
+                        style={{
+                          left: bias.score >= 0 ? "50%" : `${50 + bias.score / 2}%`,
+                          width: `${Math.abs(bias.score) / 2}%`,
+                        }}
+                      />
+                    </div>
+                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0", signalClasses(bias.signal))}>
+                      {bias.signal} ({bias.score > 0 ? "+" : ""}{bias.score})
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

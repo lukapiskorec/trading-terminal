@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import * as ws from "@/lib/ws";
 import type { ConnectionStatus } from "@/lib/ws";
+import { MARKET_DURATION, marketSlug } from "@/lib/constants";
 import type { Market } from "@/types/market";
 import { LiveMarketPanel } from "@/components/dashboard/LiveMarketPanel";
 import { IndicatorPanel } from "@/components/dashboard/IndicatorPanel";
@@ -58,10 +59,33 @@ export function Dashboard() {
   // Find recent streak
   const streak = computeStreak(resolvedMarkets);
 
+  // Current live market link — update every market cycle
+  const [liveSlug, setLiveSlug] = useState(() => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    return marketSlug(Math.floor(nowSec / MARKET_DURATION) * MARKET_DURATION);
+  });
+  useEffect(() => {
+    function updateSlug() {
+      const nowSec = Math.floor(Date.now() / 1000);
+      setLiveSlug(marketSlug(Math.floor(nowSec / MARKET_DURATION) * MARKET_DURATION));
+    }
+    const id = setInterval(updateSlug, 5000);
+    return () => clearInterval(id);
+  }, []);
+  const polymarketUrl = `https://polymarket.com/event/${liveSlug}`;
+
   return (
     <div className="space-y-4">
       {/* Connection + status bar */}
       <div className="flex items-center gap-3">
+        <a
+          href={polymarketUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-300 transition-colors"
+        >
+          BTC 5-min Up/Down ↗
+        </a>
         <Button variant="outline" size="sm" onClick={handleConnect}>
           <span className={cn(
             "inline-block h-2 w-2 rounded-full mr-2",

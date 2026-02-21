@@ -10,6 +10,7 @@ import { FormulaComposer } from "@/components/analytics/FormulaComposer";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { cn } from "@/lib/cn";
+import { MARKET_DURATION, marketSlug } from "@/lib/constants";
 
 export function Analytics() {
   const { date, setDate } = useShellContext();
@@ -72,13 +73,33 @@ export function Analytics() {
     );
   }
 
+  // Current live market link — update every market cycle
+  const [liveSlug, setLiveSlug] = useState(() => {
+    const now = Math.floor(Date.now() / 1000);
+    return marketSlug(Math.floor(now / MARKET_DURATION) * MARKET_DURATION);
+  });
+  useEffect(() => {
+    function updateSlug() {
+      const now = Math.floor(Date.now() / 1000);
+      setLiveSlug(marketSlug(Math.floor(now / MARKET_DURATION) * MARKET_DURATION));
+    }
+    const id = setInterval(updateSlug, 5000);
+    return () => clearInterval(id);
+  }, []);
+  const polymarketUrl = `https://polymarket.com/event/${liveSlug}`;
+
   return (
     <div className="space-y-4">
       {/* Compact one-row header: market name · date picker · outcomes · export */}
       <div className="flex items-center justify-center gap-3 border-b border-theme pb-3">
-        <span className="text-sm font-medium text-neutral-400 tracking-wide flex-shrink-0">
-          BTC 5m Up/Down
-        </span>
+        <a
+          href={polymarketUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium text-neutral-400 tracking-wide flex-shrink-0 underline underline-offset-2 hover:text-neutral-300 transition-colors"
+        >
+          BTC 5-min Up/Down ↗
+        </a>
         <input
           type="date"
           value={date}
